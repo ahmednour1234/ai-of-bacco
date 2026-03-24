@@ -1,0 +1,58 @@
+# Environment
+.env
+*.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# Virtual environment
+.venv/
+venv/
+env/
+
+# Storage / uploads
+storage/uploads/
+
+# DB / diagnostic artifacts
+*.db
+*.sqlite3
+db_test.txt
+diag*.txt
+diag*.py
+diagnose*.py
+diagnose*.txt
+diagnose_out.txt
+import_debug.txt
+import_test.txt
+pip_out.txt
+startup_err.txt
+test_imports_out.txt
+test_imports.py
+check_server.py
+so5291_result.json
+
+# Logs
+*.log
+pg_startup.log
+server*.log
+startup.log
+server_start.log
+
+# Temp files
+tmp_upload.*
+
+# IDE
+.vscode/
+.idea/
+
+# Alembic compiled
+alembic/__pycache__/
+alembic/versions/__pycache__/
