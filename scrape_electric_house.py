@@ -258,6 +258,7 @@ async def scrape_page(
     }""")
 
     products = []
+    seen_on_page: set[str] = set()
     for raw in products_raw:
         name = (raw.get("name") or "").strip()
         product_url = (raw.get("href") or "").strip()
@@ -266,6 +267,11 @@ async def scrape_page(
 
         slug = product_url.rstrip("/").split("/")[-1]
         external_id = re.sub(r"\.html$", "", slug)
+
+        # Deduplicate within page (site renders mobile + desktop grids)
+        if external_id in seen_on_page:
+            continue
+        seen_on_page.add(external_id)
 
         products.append({
             "external_id":    external_id,
@@ -282,37 +288,23 @@ async def scrape_page(
         })
 
     # ── Next-page link ──────────────────────────────────────────────────────
-    # The site uses &page=N; look for a clickable "next" arrow in the
-    # pagination widget, or fall back to incrementing the page parameter.
+    # The site uses React buttons (not <a> tags) for pagination.
+    # Strategy: check if "move to the next page" button is enabled, then
+    # build the next URL by incrementing the &page= parameter.
     next_url = await page.evaluate("""() => {
-        // Try explicit next-page anchors first
-        const candidates = [
-            document.querySelector('a[aria-label="Go to next page"]'),
-            document.querySelector('a[aria-label="Next"]'),
-            document.querySelector('a[rel="next"]'),
-            document.querySelector('[class*="pagination"] a[class*="next"]'),
-        ];
-        for (const el of candidates) {
-            if (el) {
-                const h = el.getAttribute('href') || '';
-                if (h) return h.startsWith('http') ? h : 'https://electric-house.com' + h;
-            }
-        }
-        // Parse all pagination page links and return the one after current
-        const paginationRoot = document.querySelector('[class*="pagination-root"]');
-        if (!paginationRoot) return null;
-        const pageLinks = Array.from(paginationRoot.querySelectorAll('a[href]'));
-        const curUrl = window.location.href;
-        const curPageM = curUrl.match(/[?&]page=(\\d+)/);
-        const curPage = curPageM ? parseInt(curPageM[1]) : 1;
-        for (const a of pageLinks) {
-            const h = a.getAttribute('href') || '';
-            const m = h.match(/[?&]page=(\\d+)/);
-            if (m && parseInt(m[1]) === curPage + 1) {
-                return h.startsWith('http') ? h : 'https://electric-house.com' + h;
-            }
-        }
-        return null;
+        // Find the "next page" nav button
+        const nextBtn =
+            document.querySelector('button[aria-label="move to the next page"]') ||
+            document.querySelector('button[aria-label="Next page"]');
+        if (nextBtn && nextBtn.disabled) return null;
+        if (!nextBtn) return null;   // no next button = last page
+
+        // Extract current page from URL and build next-page URL
+        const curUrl  = window.location.href;
+        const pageM   = curUrl.match(/([?&])page=(\\d+)/);
+        if (!pageM) return null;
+        const nextPage = parseInt(pageM[2]) + 1;
+        return curUrl.replace(/([?&])page=\\d+/, pageM[1] + 'page=' + nextPage);
     }""")
 
     return products, next_url
@@ -321,7 +313,7 @@ async def scrape_page(
 # ─── STEP 3: enrich one product page (SKU) ───────────────────────────────────
 
 async def enrich_product(client: httpx.AsyncClient, product: dict) -> dict:
-    """Visit the product page and extract SKU via httpx + BeautifulSoup."""
+    """Visit the product page and extract SKU via httpx."""
     url = product.get("source_url", "")
     if not url:
         return product
@@ -331,28 +323,43 @@ async def enrich_product(client: httpx.AsyncClient, product: dict) -> dict:
         if r.status_code != 200:
             return product
 
-        soup = BeautifulSoup(r.text, "html.parser")
+        text = r.text
 
-        # Magento 2 SKU locations (try multiple selectors)
-        sku_el = (
-            soup.select_one(".product.attribute.sku .value") or
-            soup.select_one("[itemprop='sku']") or
-            soup.select_one(".sku .value") or
-            soup.select_one(".product-info-sku") or
-            soup.select_one(".sku")
-        )
-        if sku_el:
-            sku = sku_el.get_text(strip=True)
-            # strip label prefix like "SKU: EZ9F5C106"
-            sku = re.sub(r"^sku[:\s]+", "", sku, flags=re.IGNORECASE).strip()
-            if sku:
-                product["sku"] = sku
+        # Strategy 1: React/JSON-in-HTML — find the SKU value in the page source.
+        # The site bakes product data into a JSON blob in the page for SEO/SSR.
+        # Pattern: "sku":"XXXX" or "sku": "XXXX" or SKU followed by value in text
+        sku = ""
 
-        # Also try to grab the image if listing didn't have one
-        if not product.get("image_url"):
-            img_el = soup.select_one(".product.media img.gallery-placeholder__image")
-            if img_el:
-                product["image_url"] = img_el.get("src", "")
+        # Try JSON blob patterns (Magento/React store hydration data)
+        m = re.search(r'"sku"\s*:\s*"([^"]{2,60})"', text)
+        if m:
+            sku = m.group(1).strip()
+
+        # Try plain "SKU XXXXXX" visible text pattern
+        if not sku:
+            m = re.search(r'\bSKU\s+([A-Z0-9][A-Z0-9._\-]{1,40})', text, re.IGNORECASE)
+            if m:
+                sku = m.group(1).strip()
+
+        # Fallback: BeautifulSoup Magento selectors
+        if not sku:
+            soup = BeautifulSoup(text, "html.parser")
+            for sel in [
+                ".product.attribute.sku .value",
+                "[itemprop='sku']",
+                ".sku .value",
+                ".product-info-sku",
+            ]:
+                el = soup.select_one(sel)
+                if el:
+                    raw_sku = el.get_text(strip=True)
+                    raw_sku = re.sub(r"^sku[:\s]+", "", raw_sku, flags=re.IGNORECASE).strip()
+                    if raw_sku:
+                        sku = raw_sku
+                        break
+
+        if sku:
+            product["sku"] = sku
 
     except Exception:
         pass
