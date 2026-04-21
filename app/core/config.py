@@ -52,6 +52,15 @@ class Settings(BaseSettings):
     DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/qumta_db"
     DATABASE_URL_SYNC: str = "postgresql+psycopg2://postgres:password@localhost:5432/qumta_db"
 
+    # ── Scraper Database ───────────────────────────────────────────────────────
+    SCRAPER_DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/scraper_db"
+    SCRAPER_DATABASE_URL_SYNC: str = "postgresql+psycopg2://postgres:password@localhost:5432/scraper_db"
+
+    # ── Scraper Sync API ───────────────────────────────────────────────────────
+    SCRAPER_SYNC_API_URL: str = "https://api.example.com/v1/products/import"
+    SCRAPER_SYNC_API_KEY: str = ""
+    SCRAPER_SYNC_BATCH_SIZE: int = 100
+
     # ── JWT Authentication ────────────────────────────────────────────────────
     SECRET_KEY: str = "change-this-in-production"
     ALGORITHM: str = "HS256"

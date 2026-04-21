@@ -6,6 +6,7 @@ Import this module where tasks are declared; do NOT import the full app stack.
 """
 
 from celery import Celery
+from celery.schedules import crontab as celery_crontab
 
 from app.core.config import get_settings
 
@@ -19,6 +20,8 @@ celery_app = Celery(
         "app.tasks.document_tasks",
         "app.tasks.product_tasks",
         "app.tasks.price_tasks",
+        # Scraper tasks — separate database, same broker/worker pool
+        "scraper.tasks.scraper_tasks",
     ],
 )
 
@@ -31,4 +34,18 @@ celery_app.conf.update(
     task_track_started=True,
     task_acks_late=True,
     worker_prefetch_multiplier=1,
+    # ── Celery Beat schedule ───────────────────────────────────────────────────
+    beat_schedule={
+        # Scrape the example source every day at 02:00 UTC
+        "scrape-example-source-daily": {
+            "task": "scraper.run_scraper",
+            "schedule": celery_crontab(hour=2, minute=0),
+            "args": ("Example Store",),
+        },
+        # Sync all unsynced scraper products to the external API every hour
+        "sync-scraper-products-hourly": {
+            "task": "scraper.sync_products",
+            "schedule": celery_crontab(minute=0),
+        },
+    },
 )
