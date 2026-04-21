@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import BigInteger, DateTime, ForeignKey, String, Text
+from sqlalchemy import Integer, DateTime, ForeignKey, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from scraper.core.database import ScraperBase
@@ -22,9 +22,9 @@ from scraper.models.base import ScraperTimestampMixin
 class ScraperSyncLog(ScraperTimestampMixin, ScraperBase):
     __tablename__ = "scraper_sync_logs"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     scraper_product_id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("scraper_products.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

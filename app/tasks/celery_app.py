@@ -42,6 +42,12 @@ celery_app.conf.update(
             "schedule": celery_crontab(hour=2, minute=0),
             "args": ("Example Store",),
         },
+        # Scrape El Buroj (إنارة / Lighting category) every day at 03:00 UTC
+        "scrape-elburoj-lighting-daily": {
+            "task": "scraper.run_scraper",
+            "schedule": celery_crontab(hour=3, minute=0),
+            "args": ("El Buroj",),
+        },
         # Sync all unsynced scraper products to the external API every hour
         "sync-scraper-products-hourly": {
             "task": "scraper.sync_products",

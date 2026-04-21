@@ -7,7 +7,7 @@ One source → many categories, brands, and products.
 
 from __future__ import annotations
 
-from sqlalchemy import BigInteger, Boolean, String
+from sqlalchemy import Integer, Boolean, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from scraper.core.database import ScraperBase
@@ -17,7 +17,7 @@ from scraper.models.base import ScraperTimestampMixin
 class ScraperSource(ScraperTimestampMixin, ScraperBase):
     __tablename__ = "scraper_sources"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     base_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     active: Mapped[bool] = mapped_column(

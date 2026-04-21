@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Optional
 
-from sqlalchemy import BigInteger, ForeignKey, String
+from sqlalchemy import Integer, ForeignKey, String
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from scraper.core.database import ScraperBase
@@ -19,9 +19,9 @@ from scraper.models.base import ScraperTimestampMixin
 class ScraperCategory(ScraperTimestampMixin, ScraperBase):
     __tablename__ = "scraper_categories"
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     source_id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("scraper_sources.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

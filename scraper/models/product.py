@@ -18,7 +18,7 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Optional
 
-from sqlalchemy import BigInteger, Boolean, DateTime, ForeignKey, Index, Numeric, String, Text
+from sqlalchemy import Integer, Boolean, DateTime, ForeignKey, Index, Numeric, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from scraper.core.database import ScraperBase
@@ -34,23 +34,23 @@ class ScraperProduct(ScraperTimestampMixin, ScraperBase):
         Index("ix_scraper_products_source_sku", "source_id", "sku"),
     )
 
-    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
 
     # ── Foreign keys ───────────────────────────────────────────────────────────
     source_id: Mapped[int] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("scraper_sources.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     scraper_category_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("scraper_categories.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     scraper_brand_id: Mapped[Optional[int]] = mapped_column(
-        BigInteger,
+        Integer,
         ForeignKey("scraper_brands.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

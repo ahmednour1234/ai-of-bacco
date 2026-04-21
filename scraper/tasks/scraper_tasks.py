@@ -40,10 +40,11 @@ def _get_scraper_registry() -> dict[str, type]:
     registration time.  The registry maps source_name → scraper class.
     """
     from scraper.scrapers.example_scraper import ExampleStoreScraper
+    from scraper.scrapers.elburoj_scraper import ElBurojScraper
 
     return {
         ExampleStoreScraper.source_name: ExampleStoreScraper,
-        # "Another Store": AnotherStoreScraper,
+        ElBurojScraper.source_name: ElBurojScraper,
     }
 
 
