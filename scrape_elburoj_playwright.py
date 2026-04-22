@@ -11,6 +11,7 @@ import asyncio
 import json
 import sys
 import os
+import random
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -27,20 +28,24 @@ os.environ.setdefault("SECRET_KEY", "dev-only-secret")
 os.environ.setdefault("OPENAI_API_KEY", "sk-placeholder")
 
 from playwright.async_api import async_playwright
+from _proxy_pool import next_playwright_proxy, has_proxies, count as proxy_count
 
 TARGET_URL = "https://elburoj.com/ar/%D8%A5%D9%86%D8%A7%D8%B1%D8%A9/c539403396"
 # Also try the cables category which had items on the homepage
 CABLES_URL = "https://elburoj.com/ar/%D9%83%D8%A7%D8%A8%D9%84%D8%A7%D8%AA/c413920175"
 
 
-async def scrape_with_playwright(url: str) -> tuple[list[dict], list[dict]]:
+async def scrape_with_playwright(url: str, proxy: dict | None = None) -> tuple[list[dict], list[dict]]:
     """Open a page, wait for API calls, capture products from Salla API responses."""
     products = []
     captured_api_data = []
     captured_token = None
 
     async with async_playwright() as pw:
-        browser = await pw.chromium.launch(headless=True)
+        launch_kwargs = {"headless": True}
+        if proxy:
+            launch_kwargs["proxy"] = proxy
+        browser = await pw.chromium.launch(**launch_kwargs)
         context = await browser.new_context(
             user_agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
             locale="ar",
@@ -162,20 +167,26 @@ async def main():
     print("=" * 60)
     print("EL BUROJ PLAYWRIGHT SCRAPER")
     print("=" * 60)
+    if has_proxies():
+        print(f"  Proxy pool: {proxy_count()} proxies — rotating per request")
+    else:
+        print("  No proxies configured — running from local IP")
 
     # Step 1: Get the Salla auth token by loading the category page
     print("\n[1] Loading El Buroj lighting category to capture API token...")
-    products, api_data, token = await scrape_with_playwright(TARGET_URL)
+    products, api_data, token = await scrape_with_playwright(TARGET_URL, next_playwright_proxy())
 
     if not token:
+        await asyncio.sleep(random.uniform(3, 7))
         print("\n[2] Lighting category empty — trying cables category to get token...")
-        products2, api_data2, token = await scrape_with_playwright(CABLES_URL)
+        products2, api_data2, token = await scrape_with_playwright(CABLES_URL, next_playwright_proxy())
         products.extend(products2)
         api_data.extend(api_data2)
 
     if not token:
+        await asyncio.sleep(random.uniform(3, 7))
         print("\n[3] Trying homepage...")
-        products3, api_data3, token = await scrape_with_playwright("https://elburoj.com/ar")
+        products3, api_data3, token = await scrape_with_playwright("https://elburoj.com/ar", next_playwright_proxy())
         products.extend(products3)
         api_data.extend(api_data3)
 

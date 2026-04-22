@@ -41,7 +41,6 @@ os.environ.setdefault("OPENAI_API_KEY",            "sk-placeholder")
 
 from playwright.async_api import async_playwright, Page, BrowserContext
 import httpx
-from bs4 import BeautifulSoup
 
 BASE_URL    = "https://electric-house.com/en"
 HOME_URL    = "https://electric-house.com/en/"
@@ -310,60 +309,72 @@ async def scrape_page(
     return products, next_url
 
 
-# ─── STEP 3: enrich one product page (SKU) ───────────────────────────────────
+# ─── STEP 3: enrich products with SKU via Magento 2 GraphQL ─────────────────
 
-async def enrich_product(client: httpx.AsyncClient, product: dict) -> dict:
-    """Visit the product page and extract SKU via httpx."""
-    url = product.get("source_url", "")
-    if not url:
-        return product
-    try:
-        async with _ENRICH_SEM:
-            r = await client.get(url, headers=HEADERS, follow_redirects=True, timeout=20)
-        if r.status_code != 200:
-            return product
+_GQL_URL = "https://electric-house.com/graphql"
+_GQL_HEADERS = {
+    **HEADERS,
+    "Content-Type": "application/json",
+    "Store": "en",
+}
 
-        text = r.text
 
-        # Strategy 1: React/JSON-in-HTML — find the SKU value in the page source.
-        # The site bakes product data into a JSON blob in the page for SEO/SSR.
-        # Pattern: "sku":"XXXX" or "sku": "XXXX" or SKU followed by value in text
-        sku = ""
+def _url_key_from_url(url: str) -> str:
+    """Extract the Magento url_key from a product URL.
 
-        # Try JSON blob patterns (Magento/React store hydration data)
-        m = re.search(r'"sku"\s*:\s*"([^"]{2,60})"', text)
-        if m:
-            sku = m.group(1).strip()
+    https://electric-house.com/en/schneider-mcb.html  ->  schneider-mcb
+    """
+    m = re.search(r'/en/([^/?#]+?)(?:\.html)?(?:[/?#]|$)', url)
+    return m.group(1) if m else ""
 
-        # Try plain "SKU XXXXXX" visible text pattern
-        if not sku:
-            m = re.search(r'\bSKU\s+([A-Z0-9][A-Z0-9._\-]{1,40})', text, re.IGNORECASE)
-            if m:
-                sku = m.group(1).strip()
 
-        # Fallback: BeautifulSoup Magento selectors
-        if not sku:
-            soup = BeautifulSoup(text, "html.parser")
-            for sel in [
-                ".product.attribute.sku .value",
-                "[itemprop='sku']",
-                ".sku .value",
-                ".product-info-sku",
-            ]:
-                el = soup.select_one(sel)
-                if el:
-                    raw_sku = el.get_text(strip=True)
-                    raw_sku = re.sub(r"^sku[:\s]+", "", raw_sku, flags=re.IGNORECASE).strip()
-                    if raw_sku:
-                        sku = raw_sku
-                        break
+async def enrich_products_batch(
+    client: httpx.AsyncClient,
+    products: list[dict],
+    batch_size: int = 50,
+) -> list[dict]:
+    """Fetch SKUs for a batch of products via the Magento 2 GraphQL API."""
+    # Build url_key -> product map
+    key_map: dict[str, dict] = {}
+    for p in products:
+        key = _url_key_from_url(p.get("source_url", ""))
+        if key:
+            key_map[key] = p
 
-        if sku:
-            product["sku"] = sku
+    if not key_map:
+        return products
 
-    except Exception:
-        pass
-    return product
+    keys = list(key_map.keys())
+    # Fetch in batches
+    for i in range(0, len(keys), batch_size):
+        chunk = keys[i : i + batch_size]
+        keys_gql = ", ".join(f'"{k}"' for k in chunk)
+        query = """
+        {
+          products(filter: {url_key: {in: [%s]}}) {
+            items { sku url_key }
+          }
+        }
+        """ % keys_gql
+        try:
+            async with _ENRICH_SEM:
+                r = await client.post(
+                    _GQL_URL,
+                    json={"query": query},
+                    headers=_GQL_HEADERS,
+                    timeout=20,
+                )
+            if r.status_code == 200:
+                data = r.json()
+                for item in (data.get("data", {}).get("products", {}).get("items") or []):
+                    uk = item.get("url_key", "")
+                    sku = item.get("sku", "")
+                    if uk and sku and uk in key_map:
+                        key_map[uk]["sku"] = sku
+        except Exception:
+            pass
+
+    return products
 
 
 # ─── STEP 4: save batch to SQLite ────────────────────────────────────────────
@@ -518,13 +529,9 @@ async def scrape_category(
             print(f"      → {len(products)} found, {len(new)} new")
 
             if new:
-                # Enrich with SKU from product pages (concurrent)
-                print(f"      Enriching {len(new)} products (SKU)...")
-                enriched = await asyncio.gather(
-                    *[enrich_product(client, p) for p in new],
-                    return_exceptions=True,
-                )
-                new = [p for p in enriched if isinstance(p, dict)]
+                # Enrich with SKU via Magento 2 GraphQL (one batch request)
+                print(f"      Enriching {len(new)} products (SKU via GraphQL)...")
+                new = await enrich_products_batch(client, new)
 
                 save_to_sqlite(new)
                 cat_total += len(new)

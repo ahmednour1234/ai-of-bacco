@@ -11,9 +11,63 @@ Then open: http://localhost:8765
 import sqlite3
 import json
 import os
+import sys
+import subprocess
 import webbrowser
 import threading
 from http.server import BaseHTTPRequestHandler, HTTPServer
+
+# --- Scraper process state (keyed by scraper name) ---
+_SCRAPERS = {
+    "elburoj":       "scrape_elburoj_playwright.py",
+    "electric-house": "scrape_electric_house.py",
+    "janoubco":      "scrape_janoubco.py",
+    "microless":     "scrape_microless.py",
+    "mejdaf":        "scrape_mejdaf.py",
+    "baytalebaa":    "scrape_baytalebaa.py",
+}
+_scraper_procs: dict[str, object] = {}
+_scraper_logs:  dict[str, list]   = {k: [] for k in _SCRAPERS}
+_scraper_lock = threading.Lock()
+
+def _scraper_status(name: str = "elburoj") -> str:
+    with _scraper_lock:
+        proc = _scraper_procs.get(name)
+        if proc is None:
+            return "idle"
+        ret = proc.poll()
+        if ret is None:
+            return "running"
+        return "done" if ret == 0 else f"error:{ret}"
+
+def _collect_output(name: str, proc):
+    for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        with _scraper_lock:
+            _scraper_logs[name].append(line)
+            if len(_scraper_logs[name]) > 500:
+                _scraper_logs[name] = _scraper_logs[name][-500:]
+
+def _run_scraper(name: str = "elburoj"):
+    script_file = _SCRAPERS.get(name)
+    if not script_file:
+        return
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_file)
+    with _scraper_lock:
+        proc = _scraper_procs.get(name)
+        if proc is not None and proc.poll() is None:
+            return  # already running
+        _scraper_logs[name] = []
+        env = os.environ.copy()
+        new_proc = subprocess.Popen(
+            [sys.executable, script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        _scraper_procs[name] = new_proc
+    threading.Thread(target=_collect_output, args=(name, new_proc), daemon=True).start()
 
 DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scraper_data.db")
 PORT = 8765
@@ -131,8 +185,39 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
 <header>
   <div class="live-dot"></div>
   <div>
-    <h1>🗄️ El Buroj — Live Scraper Dashboard</h1>
+    <h1>🗄️ Live Scraper Dashboard</h1>
     <div class="sub">Auto-refreshes every 3s · <span id="last-update">—</span></div>
+  </div>
+  <div style="margin-left:auto;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    <span id="scraper-status" style="font-size:.8rem;color:#7d8590"></span>
+    <button id="run-btn-elburoj" onclick="runScraper('elburoj',this)"
+      style="background:#3b82f6;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ El Buroj
+    </button>
+    <button id="run-btn-electric-house" onclick="runScraper('electric-house',this)"
+      style="background:#22c55e;color:#000;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Electric House
+    </button>
+    <button id="run-btn-janoubco" onclick="runScraper('janoubco',this)"
+      style="background:#a855f7;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Janoubco
+    </button>
+    <button id="run-btn-microless" onclick="runScraper('microless',this)"
+      style="background:#0ea5e9;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Microless
+    </button>
+    <button id="run-btn-mejdaf" onclick="runScraper('mejdaf',this)"
+      style="background:#f97316;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Mejdaf
+    </button>
+    <button id="run-btn-baytalebaa" onclick="runScraper('baytalebaa',this)"
+      style="background:#10b981;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Baytalebaa
+    </button>
+    <button id="run-btn-all" onclick="runAll(this)"
+      style="background:#f59e0b;color:#000;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ▶ Run All
+    </button>
   </div>
 </header>
 
@@ -183,6 +268,14 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
       <div class="brand-list" id="brand-list"></div>
     </div>
   </div>
+</div>
+
+<div id="log-section" style="display:none;padding:12px 28px;background:#0d1117;border-top:1px solid #21283a">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <span style="color:#7d8590;font-size:.78rem;text-transform:uppercase;letter-spacing:.06em">Scraper Output</span>
+    <span style="color:#484f58;font-size:.75rem;cursor:pointer" onclick="document.getElementById('log-section').style.display='none'">✕ hide</span>
+  </div>
+  <pre id="log-box" style="background:#0a0d14;border:1px solid #21283a;border-radius:8px;padding:10px 14px;font-size:.75rem;max-height:200px;overflow-y:auto;color:#c0c0c0;white-space:pre-wrap;word-break:break-word"></pre>
 </div>
 
 <div id="status-bar">
@@ -291,8 +384,130 @@ async function refresh(){
   }
 }
 
+let logInterval = null;
+let _activeScraper = null;
+
+async function runScraper(name, btn){
+  const st = document.getElementById('scraper-status');
+  btn.disabled = true;
+  btn.textContent = '⏳ Starting...';
+  st.textContent = '⏳ Launching ' + name + '...'; st.style.color='#e0b040';
+  document.getElementById('log-box').textContent = '';
+  document.getElementById('log-section').style.display = '';
+  _activeScraper = name;
+  try {
+    const res = await fetch('/api/run-scraper?scraper='+name, {method:'POST'});
+    const d = await res.json();
+    if(d.status==='started'||d.status==='already_running'){
+      btn.textContent = '⏳ Running...';
+      st.textContent='🟢 ' + name + ' running'; st.style.color='#22c55e';
+    } else {
+      btn.textContent = name==='elburoj' ? '▶ El Buroj' : '▶ Electric House';
+      btn.disabled=false;
+    }
+  } catch(e){
+    btn.textContent = name==='elburoj' ? '▶ El Buroj' : '▶ Electric House';
+    btn.disabled=false;
+    st.textContent='✗ Failed to start'; st.style.color='#f85149';
+  }
+  startLogPolling(name);
+}
+
+function startLogPolling(name){
+  if(logInterval) clearInterval(logInterval);
+  logInterval = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/scraper-log?scraper='+name);
+      const d = await r.json();
+      const box = document.getElementById('log-box');
+      box.textContent = d.log.join('\n');
+      box.scrollTop = box.scrollHeight;
+    }catch(_){}
+  }, 1500);
+}
+
+async function pollScraperStatus(){
+  const _SCRAPER_LABELS = {
+    'elburoj': '▶ El Buroj', 'electric-house': '▶ Electric House',
+    'janoubco': '▶ Janoubco', 'microless': '▶ Microless',
+    'mejdaf': '▶ Mejdaf', 'baytalebaa': '▶ Baytalebaa',
+  };
+  for(const name of ['elburoj','electric-house','janoubco','microless','mejdaf','baytalebaa']){
+    try {
+      const res = await fetch('/api/scraper-status?scraper='+name);
+      const d = await res.json();
+      const btnId = 'run-btn-' + name;
+      const btn = document.getElementById(btnId);
+      if(!btn) continue;
+      const label = _SCRAPER_LABELS[name] || ('▶ '+name);
+      const st = document.getElementById('scraper-status');
+      if(d.status==='running'){
+        btn.disabled=true; btn.textContent='⏳ Running...';
+        if(_activeScraper===name){ st.textContent='🟢 '+name+' running'; st.style.color='#22c55e'; }
+        startLogPolling(name);
+      } else if(d.status==='done'){
+        btn.disabled=false; btn.textContent=label;
+        if(_activeScraper===name){ st.textContent='✓ '+name+' done'; st.style.color='#22c55e'; if(logInterval){clearInterval(logInterval);logInterval=null;} }
+      } else if(d.status && d.status.startsWith('error')){
+        btn.disabled=false; btn.textContent=label;
+        if(_activeScraper===name){
+          st.textContent='✗ '+name+' failed — see log below'; st.style.color='#f85149';
+          document.getElementById('log-section').style.display='';
+          if(logInterval){clearInterval(logInterval);logInterval=null;}
+        }
+      } else {
+        btn.disabled=false; btn.textContent=label;
+      }
+    } catch(_){}
+  }
+}
+
+async function runAll(btn){
+  btn.disabled = true;
+  btn.textContent = '⏳ Running All...';
+  const st = document.getElementById('scraper-status');
+  st.textContent = '⏳ Running all scrapers...'; st.style.color='#e0b040';
+  document.getElementById('log-box').textContent = '';
+  document.getElementById('log-section').style.display = '';
+  _activeScraper = 'elburoj';
+  const scrapers = [
+    {name:'elburoj',       btnId:'run-btn-elburoj'},
+    {name:'electric-house',btnId:'run-btn-electric-house'},
+    {name:'janoubco',      btnId:'run-btn-janoubco'},
+    {name:'microless',     btnId:'run-btn-microless'},
+    {name:'mejdaf',        btnId:'run-btn-mejdaf'},
+    {name:'baytalebaa',    btnId:'run-btn-baytalebaa'},
+  ];
+  for(const s of scrapers){
+    const b = document.getElementById(s.btnId);
+    if(b){ b.disabled=true; b.textContent='⏳ Running...'; }
+    try {
+      await fetch('/api/run-scraper?scraper='+s.name, {method:'POST'});
+    } catch(_){}
+  }
+  startLogPolling('elburoj');
+  // re-enable Run All when both finish
+  const check = setInterval(async()=>{
+    let anyRunning = false;
+    for(const s of scrapers){
+      try{
+        const r = await fetch('/api/scraper-status?scraper='+s.name);
+        const d = await r.json();
+        if(d.status==='running') anyRunning=true;
+      }catch(_){}
+    }
+    if(!anyRunning){
+      clearInterval(check);
+      btn.disabled=false; btn.textContent='▶ Run All';
+      st.textContent='✓ All scrapers done'; st.style.color='#22c55e';
+    }
+  }, 3000);
+}
+
 refresh();
 setInterval(refresh, 3000);
+setInterval(pollScraperStatus, 2000);
+pollScraperStatus();
 </script>
 </body>
 </html>"""
@@ -309,6 +524,38 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(HTML.encode("utf-8"))
 
+        elif self.path == "/api/scraper-status":
+            body = json.dumps({"status": _scraper_status()}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path.startswith("/api/scraper-status?"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            name = qs.get("scraper", ["elburoj"])[0]
+            body = json.dumps({"status": _scraper_status(name), "scraper": name}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path.startswith("/api/scraper-log"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            name = qs.get("scraper", ["elburoj"])[0]
+            with _scraper_lock:
+                lines = list(_scraper_logs.get(name, []))
+            body = json.dumps({"log": lines}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
         elif self.path == "/api/data":
             data = query_db()
             body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
@@ -318,6 +565,29 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
 
+        else:
+            self.send_response(404)
+            self.end_headers()
+
+    def do_POST(self):
+        if self.path.startswith("/api/run-scraper"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            name = qs.get("scraper", ["elburoj"])[0]
+            if name not in _SCRAPERS:
+                self.send_response(400)
+                self.end_headers()
+                return
+            status = _scraper_status(name)
+            if status == "running":
+                body = json.dumps({"status": "already_running", "scraper": name}).encode("utf-8")
+            else:
+                threading.Thread(target=_run_scraper, args=(name,), daemon=True).start()
+                body = json.dumps({"status": "started", "scraper": name}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
         else:
             self.send_response(404)
             self.end_headers()

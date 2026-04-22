@@ -1,0 +1,14 @@
+# proxies.txt — Add one proxy per line. Scrapers rotate through these.
+#
+# Formats supported:
+#   http://host:port
+#   http://username:password@host:port
+#   socks5://host:port
+#   socks5://username:password@host:port
+#
+# Examples:
+#   http://185.199.228.220:7300
+#   http://user123:pass456@gate.smartproxy.com:7000
+#   socks5://proxy.example.com:1080
+#
+# Leave empty to scrape from your own IP (no proxy).

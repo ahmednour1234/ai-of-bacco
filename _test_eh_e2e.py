@@ -50,13 +50,11 @@ async def test():
                 print(f"  {len(products)} found, {len(new)} new, next={next_url}")
 
                 if new:
-                    print(f"  Enriching {len(new[:5])} (first 5 only for test)...")
-                    import asyncio as asy
-                    enriched = await asy.gather(*[seh.enrich_product(client, p) for p in new[:5]])
-                    for p in enriched:
-                        if isinstance(p, dict):
-                            print(f"    {p['name'][:50]:50s}  SKU={p['sku'] or '?':20s}  price={p['price']}")
-                    all_products.extend(new)
+                    print(f"  Enriching {len(new)} products (SKU via GraphQL)...")
+                    enriched = await seh.enrich_products_batch(client, new)
+                    for p in enriched[:5]:
+                        print(f"    {p['name'][:50]:50s}  SKU={p.get('sku') or '?':20s}  price={p['price']}")
+                    all_products.extend(enriched)
 
                 if not next_url:
                     break
