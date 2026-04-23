@@ -40,7 +40,11 @@ os.environ.setdefault("SCRAPER_SYNC_API_KEY",      "")
 os.environ.setdefault("SECRET_KEY",                "dev-only-secret")
 os.environ.setdefault("OPENAI_API_KEY",            "sk-placeholder")
 
-from playwright.async_api import async_playwright, Page, BrowserContext
+try:
+    from playwright.async_api import async_playwright, Page, BrowserContext
+    HAS_PLAYWRIGHT = True
+except ImportError:
+    HAS_PLAYWRIGHT = False
 import httpx
 
 BASE_URL    = "https://electric-house.com/en"
@@ -633,4 +637,8 @@ async def main():
 
 
 if __name__ == "__main__":
+    if not HAS_PLAYWRIGHT:
+        print("ERROR: Playwright is not installed. This scraper requires a browser environment.")
+        print("Run locally with: pip install playwright && playwright install chromium")
+        sys.exit(1)
     asyncio.run(main())

@@ -16,6 +16,7 @@ If proxies.txt is empty or missing, scrapers run without a proxy (direct IP).
 import os
 import re
 import threading
+from typing import Optional
 
 _PROXY_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), "proxies.txt")
 
@@ -54,7 +55,7 @@ def has_proxies() -> bool:
     return bool(_pool)
 
 
-def next_playwright_proxy() -> dict | None:
+def next_playwright_proxy() -> Optional[dict]:
     """
     Return the next proxy as a Playwright proxy dict, or None if no proxies.
     Format: {"server": "http://host:port", "username": "...", "password": "..."}
@@ -77,7 +78,7 @@ def next_playwright_proxy() -> dict | None:
     return {"server": url}
 
 
-def next_httpx_proxy() -> str | None:
+def next_httpx_proxy() -> Optional[str]:
     """Return the next proxy as a plain URL string for httpx, or None."""
     global _idx
     with _lock:

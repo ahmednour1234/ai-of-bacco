@@ -39,14 +39,13 @@ os.environ.setdefault("SECRET_KEY",                "dev-only-secret")
 os.environ.setdefault("OPENAI_API_KEY",            "sk-placeholder")
 
 import httpx
-from playwright.async_api import async_playwright
 try:
     from bs4 import BeautifulSoup
     _HAS_BS4 = True
 except ImportError:
     _HAS_BS4 = False
 
-from _proxy_pool import next_playwright_proxy, next_httpx_proxy, has_proxies, count as proxy_count
+from _proxy_pool import next_httpx_proxy, has_proxies, count as proxy_count
 
 BASE_URL    = "https://janoubco.com"
 SOURCE_NAME = "Janoubco"
