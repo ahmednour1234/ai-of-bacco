@@ -731,38 +731,55 @@ async def main():
     random.shuffle(filtered)
     n = len(filtered)
 
-    # ── STEP 2: fetch + parse product pages concurrently ─────────────────
+    # ── STEP 2: fetch + parse product pages via worker queue ─────────────
     print(f"\n[STEP 2] Fetching {n} product pages "
           f"(concurrency={CONCURRENCY})...\n")
 
     total_ins = total_upd = total_skip = 0
-    batch: list[dict] = []
     done = 0
+    queue: asyncio.Queue = asyncio.Queue()
+    results_queue: asyncio.Queue = asyncio.Queue()
 
-    async def process(url: str):
-        nonlocal done
-        result = await fetch_product(url)
-        done += 1
-        return result
+    for url in filtered:
+        await queue.put(url)
 
-    tasks = [process(u) for u in filtered]
-
-    for coro in asyncio.as_completed(tasks):
-        result = await coro
-        if result:
-            batch.append(result)
-
-        if len(batch) >= _BATCH_SAVE or (done == n and batch):
+    async def worker():
+        while True:
             try:
-                ins, upd, sk = save_to_sqlite(batch)
-                total_ins  += ins
-                total_upd  += upd
-                total_skip += sk
-                print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
-                      f"{sk} skipped (total new: {total_ins})")
-            except Exception as db_err:
-                print(f"  [save error] {db_err}")
-            batch = []
+                url = queue.get_nowait()
+            except asyncio.QueueEmpty:
+                break
+            result = await fetch_product(url)
+            await results_queue.put(result)
+            queue.task_done()
+
+    # Drain results and save in batches as workers produce them
+    async def drain():
+        nonlocal done, total_ins, total_upd, total_skip
+        batch: list[dict] = []
+        while done < n:
+            try:
+                result = await asyncio.wait_for(results_queue.get(), timeout=60)
+            except asyncio.TimeoutError:
+                print(f"  [warn] no result for 60s at {done}/{n} — continuing...")
+                continue
+            done += 1
+            if result:
+                batch.append(result)
+            if len(batch) >= _BATCH_SAVE or (done == n and batch):
+                try:
+                    ins, upd, sk = save_to_sqlite(batch)
+                    total_ins  += ins
+                    total_upd  += upd
+                    total_skip += sk
+                    print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
+                          f"{sk} skipped (total new: {total_ins})")
+                except Exception as db_err:
+                    print(f"  [save error] {db_err}")
+                batch = []
+
+    workers = [asyncio.create_task(worker()) for _ in range(CONCURRENCY)]
+    await asyncio.gather(drain(), *workers)
 
     print(f"\n{'=' * 60}")
     print(f"  DONE — inserted={total_ins}, updated={total_upd}, skipped={total_skip}")
