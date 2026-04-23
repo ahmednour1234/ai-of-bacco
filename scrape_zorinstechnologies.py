@@ -60,7 +60,7 @@ SEED_CATEGORIES = [
 ]
 
 CONCURRENCY = 5
-_SEM        = asyncio.Semaphore(CONCURRENCY)
+_SEM: Optional[asyncio.Semaphore] = None
 
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
@@ -473,6 +473,8 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
 # ─── main ────────────────────────────────────────────────────────────────────
 
 async def main():
+    global _SEM
+    _SEM = asyncio.Semaphore(CONCURRENCY)
     print("=" * 60)
     print("  ZORINS TECHNOLOGIES — FULL SITE SCRAPER")
     print("=" * 60)

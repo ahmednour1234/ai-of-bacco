@@ -59,7 +59,7 @@ HEADERS = {
 }
 
 CONCURRENCY = 10
-_SEM        = asyncio.Semaphore(CONCURRENCY)
+_SEM: Optional[asyncio.Semaphore] = None
 _BATCH_SAVE = 50
 
 
@@ -399,6 +399,8 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
 # ─── main ─────────────────────────────────────────────────────────────────────
 
 async def main() -> None:
+    global _SEM
+    _SEM = asyncio.Semaphore(CONCURRENCY)
     print("=" * 60)
     print("  MEJDAF SCRAPER")
     print("=" * 60)

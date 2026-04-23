@@ -65,7 +65,7 @@ HEADERS = {
 
 # Concurrency: how many product pages to fetch simultaneously
 CONCURRENCY = 12
-_SEM = asyncio.Semaphore(CONCURRENCY)
+_SEM: Optional[asyncio.Semaphore] = None
 _BATCH_SAVE = 50   # save to DB every N products
 
 
@@ -476,6 +476,8 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
 # ─── main ─────────────────────────────────────────────────────────────────────
 
 async def main():
+    global _SEM
+    _SEM = asyncio.Semaphore(CONCURRENCY)
     parser = argparse.ArgumentParser(description="Scrape janoubco.com")
     parser.add_argument("--resume", action="store_true",
                         help="Skip already-saved products")
