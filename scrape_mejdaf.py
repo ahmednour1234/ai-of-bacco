@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_mejdaf.py
 -----------------
@@ -64,7 +65,7 @@ _BATCH_SAVE = 50
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     if not text:
         return None
     m = re.search(r'\d[\d,]*(?:\.\d+)?', text.replace('\u060c', ''))
@@ -119,7 +120,7 @@ async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
 
 # ─── STEP 2: parse a single product page ─────────────────────────────────────
 
-def _parse_product_html(html: str, url: str) -> dict | None:
+def _parse_product_html(html: str, url: str) ->Optional[ dict]:
     if not html:
         return None
 
@@ -231,7 +232,7 @@ def _parse_product_html(html: str, url: str) -> dict | None:
 
 # ─── STEP 3: fetch product page ───────────────────────────────────────────────
 
-async def fetch_product(client: httpx.AsyncClient, url: str) -> dict | None:
+async def fetch_product(client: httpx.AsyncClient, url: str) ->Optional[ dict]:
     async with _SEM:
         await asyncio.sleep(random.uniform(0.3, 1.5))
         try:

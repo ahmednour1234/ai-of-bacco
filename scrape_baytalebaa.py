@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_baytalebaa.py
 ---------------------
@@ -71,7 +72,7 @@ PAGE_TIMEOUT = 30_000   # ms
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     if not text:
         return None
     m = re.search(r'\d[\d,]*(?:\.\d+)?', text.replace('\u060c', ''))
@@ -146,7 +147,7 @@ async def fetch_all_product_urls() -> list[str]:
 
 # ─── STEP 2: parse HTML from a loaded Playwright page ─────────────────────────
 
-def _parse_product_html(html: str, url: str) -> dict | None:
+def _parse_product_html(html: str, url: str) ->Optional[ dict]:
     """Extract fields from Prestashop product page HTML."""
     if not html:
         return None
@@ -301,7 +302,7 @@ def _parse_product_html(html: str, url: str) -> dict | None:
 
 # ─── STEP 3: fetch product page via Playwright ────────────────────────────────
 
-async def fetch_product_playwright(context: BrowserContext, url: str) -> dict | None:
+async def fetch_product_playwright(context: BrowserContext, url: str) ->Optional[ dict]:
     async with _SEM:
         await asyncio.sleep(random.uniform(0.5, 2.0))
         page = await context.new_page()

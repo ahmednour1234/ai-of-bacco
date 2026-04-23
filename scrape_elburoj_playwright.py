@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_elburoj_playwright.py
 -----------------------------
@@ -35,7 +36,7 @@ TARGET_URL = "https://elburoj.com/ar/%D8%A5%D9%86%D8%A7%D8%B1%D8%A9/c539403396"
 CABLES_URL = "https://elburoj.com/ar/%D9%83%D8%A7%D8%A8%D9%84%D8%A7%D8%AA/c413920175"
 
 
-async def scrape_with_playwright(url: str, proxy: dict | None = None) -> tuple[list[dict], list[dict]]:
+async def scrape_with_playwright(url: str, proxy:Optional[ dict] = None) -> tuple[list[dict], list[dict]]:
     """Open a page, wait for API calls, capture products from Salla API responses."""
     products = []
     captured_api_data = []

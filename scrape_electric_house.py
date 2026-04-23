@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_electric_house.py
 --------------------------
@@ -99,7 +100,7 @@ _ENRICH_SEM = asyncio.Semaphore(8)
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     """'1,234.56' or 'SAR 1,234.56' → 1234.56"""
     if not text:
         return None
@@ -188,7 +189,7 @@ async def scrape_page(
     url: str,
     cat_name: str,
     cat_url: str,
-) -> tuple[list[dict], str | None]:
+) ->Optional[ tuple[list[dict], str]]:
     """Load one category page and extract all product cards. Returns (products, next_url)."""
     try:
         await page.goto(url, wait_until="networkidle", timeout=45_000)

@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_kmco.py
 --------------
@@ -46,7 +47,7 @@ HEADERS = {
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     """Parse WooCommerce price like '⃁ 42,00' or '42.00'."""
     if not text:
         return None
@@ -86,7 +87,7 @@ async def discover_categories(client: httpx.AsyncClient) -> list[dict]:
 
 # ─── STEP 2: scrape one category (all pages) ─────────────────────────────────
 
-async def scrape_category_page(client: httpx.AsyncClient, url: str) -> tuple[list[dict], str | None]:
+async def scrape_category_page(client: httpx.AsyncClient, url: str) ->Optional[ tuple[list[dict], str]]:
     """Scrape a single listing page. Returns (products, next_page_url)."""
     try:
         r = await client.get(url, headers=HEADERS, follow_redirects=True, timeout=30)

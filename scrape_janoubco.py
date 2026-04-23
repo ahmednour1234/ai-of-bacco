@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_janoubco.py
 -------------------
@@ -71,7 +72,7 @@ _BATCH_SAVE = 50   # save to DB every N products
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     if not text:
         return None
     # Use regex to find first decimal/integer number — avoids ر.س trailing dot bug
@@ -161,7 +162,7 @@ async def fetch_category_urls(client: httpx.AsyncClient) -> list[dict]:
 
 # ─── STEP 2: parse a single product page ─────────────────────────────────────
 
-def _parse_product_html(html: str, url: str) -> dict | None:
+def _parse_product_html(html: str, url: str) ->Optional[ dict]:
     """Extract product data from an OpenCart/Journal3 product page."""
     if not html:
         return None
@@ -297,7 +298,7 @@ def _parse_product_html(html: str, url: str) -> dict | None:
 
 # ─── STEP 3: fetch product page ───────────────────────────────────────────────
 
-async def fetch_product(client: httpx.AsyncClient, url: str) -> dict | None:
+async def fetch_product(client: httpx.AsyncClient, url: str) ->Optional[ dict]:
     """Fetch a single product page with httpx and parse it."""
     async with _SEM:
         await asyncio.sleep(random.uniform(0.3, 1.5))

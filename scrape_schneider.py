@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_schneider.py  (Playwright version)
 ------------------------------------------
@@ -65,7 +66,7 @@ TOP_CATEGORIES = [
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
 
-def parse_sar(text: str) -> float | None:
+def parse_sar(text: str) ->Optional[ float]:
     """'SAR 1,234.56' or '1,234.56' → 1234.56"""
     if not text:
         return None
@@ -105,7 +106,7 @@ async def scrape_page(
     cat_name: str,
     cat_url: str,
     price_map: dict,
-) -> tuple[list[dict], str | None]:
+) ->Optional[ tuple[list[dict], str]]:
     price_map.clear()
 
     try:

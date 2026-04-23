@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_all_elburoj.py
 ----------------------
@@ -225,7 +226,7 @@ async def scrape_category(category: dict, page_wait_ms: int = 9000) -> list[dict
 
 # ─── STEP 3: Save to SQLite ───────────────────────────────────────────────────
 
-def _parse_price(price_data) -> float | None:
+def _parse_price(price_data) ->Optional[ float]:
     if price_data is None:
         return None
     if isinstance(price_data, (int, float)):

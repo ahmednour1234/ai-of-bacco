@@ -1,3 +1,4 @@
+﻿from typing import Optional
 """
 scrape_zorinstechnologies.py
 -----------------------------
@@ -64,7 +65,7 @@ _SEM        = asyncio.Semaphore(CONCURRENCY)
 
 # ─── helpers ─────────────────────────────────────────────────────────────────
 
-def _parse_price(text: str) -> float | None:
+def _parse_price(text: str) ->Optional[ float]:
     """Parse SAR price like '6,200.00﷼' or '95.00SAR'."""
     if not text:
         return None
