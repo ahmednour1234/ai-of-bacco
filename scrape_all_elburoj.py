@@ -42,16 +42,17 @@ try:
 except ImportError:
     _HAS_BS4 = False
 
-BASE_URL    = "https://elburoj.com"
-SOURCE_NAME = "El Buroj"
+BASE_URL      = "https://elburoj.com"
+SALLA_ALT_URL = "https://elburoj.salla.sa"   # Salla merchant subdomain (always works)
+SOURCE_NAME   = "El Buroj"
 
 CONCURRENCY = 6
 _SEM: Optional[asyncio.Semaphore] = None
 _BATCH_SAVE = 30
 
 KNOWN_CATEGORIES = [
-    {"id": "539403396", "name": "إنارة",   "url": "https://elburoj.com/ar/%D8%A5%D9%86%D8%A7%D8%B1%D8%A9/c539403396"},
-    {"id": "413920175", "name": "كابلات",  "url": "https://elburoj.com/ar/%D9%83%D8%A7%D8%A8%D9%84%D8%A7%D8%AA/c413920175"},
+    {"id": "539403396", "name": "إنارة",   "url": "https://elburoj.salla.sa/categories/539403396/products"},
+    {"id": "413920175", "name": "كابلات",  "url": "https://elburoj.salla.sa/categories/413920175/products"},
 ]
 
 _USER_AGENTS = [
@@ -91,18 +92,60 @@ def _json_headers() -> dict:
     }
 
 
+_BOT_UAS = [
+    "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)",
+    "Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Googlebot/2.1; +http://www.google.com/bot.html) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (compatible; bingbot/2.0; +http://www.bing.com/bingbot.htm)",
+]
+
+
 # ─── HTTP helper ──────────────────────────────────────────────────────────────
+
+async def _fetch_once(url: str, headers: dict, timeout: int = 25) -> Optional[httpx.Response]:
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
+            return await c.get(url, headers=headers)
+    except Exception:
+        return None
+
 
 async def _get(url: str, headers: Optional[dict] = None,
                timeout: int = 25) -> Optional[httpx.Response]:
-    h = headers or _html_headers()
-    try:
-        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
-            r = await c.get(url, headers=h)
-            return r
-    except Exception as e:
-        print(f"  [http error] {url[-70:]}: {e}")
-        return None
+    """GET with multi-UA fallback: browser UA → Googlebot → BingBot.
+       Also retries on the Salla merchant subdomain if main domain 403s."""
+    attempts = [
+        {**( headers or _html_headers()), "User-Agent": _next_ua()},
+        {**_html_headers(), "User-Agent": _BOT_UAS[0]},
+        {**_html_headers(), "User-Agent": _BOT_UAS[1]},
+        {**_html_headers(), "User-Agent": _BOT_UAS[2]},
+    ]
+    last: Optional[httpx.Response] = None
+    for h in attempts:
+        r = await _fetch_once(url, h, timeout)
+        if r is not None:
+            last = r
+            if r.status_code == 200:
+                return r
+            if r.status_code not in (403, 429, 503):
+                return r   # e.g. 404 — no point retrying
+            await asyncio.sleep(random.uniform(0.5, 1.5))
+
+    # If still blocked, try rewriting the URL to the Salla merchant subdomain
+    if BASE_URL in url:
+        alt_url = url.replace(BASE_URL, SALLA_ALT_URL)
+        # also strip the /ar prefix since salla.sa doesn't use it
+        alt_url = re.sub(r'/ar/', '/', alt_url)
+        if alt_url != url:
+            for h in attempts[:2]:
+                r = await _fetch_once(alt_url, h, timeout)
+                if r is not None and r.status_code == 200:
+                    return r
+
+    if last is not None:
+        print(f"  [http {last.status_code}] {url[-70:]}")
+    else:
+        print(f"  [http error] {url[-70:]}")
+    return last
 
 
 # ─── Salla API: try to hit the store's product endpoint directly ──────────────
@@ -110,11 +153,16 @@ async def _get(url: str, headers: Optional[dict] = None,
 async def _salla_api_products(category_id: str, page: int = 1) -> tuple[list[dict], int]:
     """
     Try Salla storefront API endpoints. Returns (products, total_pages).
+    Tries both main domain and merchant subdomain.
     """
     candidates = [
+        # Salla merchant subdomain REST API (most reliable)
+        f"{SALLA_ALT_URL}/api/products?category_id={category_id}&page={page}&per_page=30",
+        f"{SALLA_ALT_URL}/categories/{category_id}/products?page={page}&per_page=30",
+        # Main domain
+        f"{BASE_URL}/api/product/list?category_id={category_id}&page={page}&per_page=30",
         f"{BASE_URL}/api/products?category_id={category_id}&page={page}&per_page=30",
         f"{BASE_URL}/ar/api/products?category_id={category_id}&page={page}&per_page=30",
-        f"{BASE_URL}/api/products?category={category_id}&page={page}",
     ]
     for url in candidates:
         r = await _get(url, headers=_json_headers())
@@ -317,41 +365,49 @@ def _parse_product_page(html: str, url: str) -> Optional[dict]:
 # ─── STEP 1: Discover categories ─────────────────────────────────────────────
 
 async def discover_categories() -> list[dict]:
-    print(f"  Loading: {BASE_URL}/ar")
-    r = await _get(f"{BASE_URL}/ar", timeout=25)
-    if r is None or r.status_code != 200:
-        print(f"  [warn] homepage status={r.status_code if r else 'None'}")
-        return []
+    # Try Salla merchant subdomain first (less likely to be blocked)
+    for base in [SALLA_ALT_URL, f"{BASE_URL}/ar"]:
+        print(f"  Loading: {base}")
+        r = await _get(base, timeout=25)
+        if r is None or r.status_code != 200:
+            print(f"  [warn] {base} → status={r.status_code if r else 'None'}")
+            continue
 
-    seen: set[str] = set()
-    cats: list[dict] = []
+        seen: set[str] = set()
+        cats: list[dict] = []
 
-    if _HAS_BS4:
-        soup = BeautifulSoup(r.text, "html.parser")
-        for a in soup.select("a[href]"):
-            href = a.get("href", "")
-            if not isinstance(href, str):
-                continue
-            m = re.search(r'/c(\d{6,})', href)
-            if not m:
-                continue
-            cid = m.group(1)
-            if cid in seen:
-                continue
-            seen.add(cid)
-            name = a.get_text(strip=True).split("\n")[0].strip() or f"cat_{cid}"
-            full = href if href.startswith("http") else BASE_URL + href
-            cats.append({"id": cid, "name": name, "url": full})
-    else:
-        for m in re.finditer(r'href=["\']([^"\']+/c(\d{6,}))["\']', r.text):
-            cid = m.group(2)
-            if cid in seen:
-                continue
-            seen.add(cid)
-            full = m.group(1) if m.group(1).startswith("http") else BASE_URL + m.group(1)
-            cats.append({"id": cid, "name": f"cat_{cid}", "url": full})
+        if _HAS_BS4:
+            soup = BeautifulSoup(r.text, "html.parser")
+            for a in soup.select("a[href]"):
+                href = a.get("href", "")
+                if not isinstance(href, str):
+                    continue
+                m = re.search(r'/c(\d{6,})', href)
+                if not m:
+                    # also match salla.sa pattern /categories/ID
+                    m = re.search(r'/categories/(\d{6,})', href)
+                if not m:
+                    continue
+                cid = m.group(1)
+                if cid in seen:
+                    continue
+                seen.add(cid)
+                name = a.get_text(strip=True).split("\n")[0].strip() or f"cat_{cid}"
+                full = href if href.startswith("http") else base.rstrip("/ar").rstrip("/") + href
+                cats.append({"id": cid, "name": name, "url": full})
+        else:
+            for m in re.finditer(r'href=["\']([^"\']+(?:/c(\d{6,})|/categories/(\d{6,})))["\']', r.text):
+                cid = m.group(2) or m.group(3)
+                if not cid or cid in seen:
+                    continue
+                seen.add(cid)
+                full = m.group(1) if m.group(1).startswith("http") else base + m.group(1)
+                cats.append({"id": cid, "name": f"cat_{cid}", "url": full})
 
-    return cats
+        if cats:
+            return cats
+
+    return []
 
 
 # ─── STEP 2: Scrape one category ─────────────────────────────────────────────
