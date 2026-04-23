@@ -1,4 +1,4 @@
-"""feedback_schema
+﻿"""feedback_schema
 
 Revision ID: c3d4e5f6a7b8
 Revises: b2b2972d979f
@@ -36,7 +36,7 @@ def upgrade() -> None:
         sa.Column("approved_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("rejected_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("raw_text", sa.Text(), nullable=True),
-        sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -73,7 +73,7 @@ def upgrade() -> None:
         sa.Column("corrected_price", sa.Float(), nullable=True),
         sa.Column("correction_note", sa.Text(), nullable=True),
         # Common
-        sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.ForeignKeyConstraint(["session_id"], ["extraction_sessions.id"], ondelete="CASCADE"),
@@ -94,7 +94,7 @@ def upgrade() -> None:
         sa.Column("examples_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("category_hint", sa.String(length=255), nullable=True),
         sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),
@@ -118,7 +118,7 @@ def upgrade() -> None:
         sa.Column("correct_category", sa.String(length=255), nullable=True),
         sa.Column("correct_price", sa.Float(), nullable=True),
         sa.Column("use_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("id", sa.UUID(), server_default=sa.text("gen_random_uuid()"), nullable=False),
+        sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.PrimaryKeyConstraint("id"),

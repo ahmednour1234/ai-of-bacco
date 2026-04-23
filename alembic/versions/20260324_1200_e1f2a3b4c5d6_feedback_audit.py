@@ -1,4 +1,4 @@
-"""
+﻿"""
 20260324_1200_feedback_audit.py
 Alembic migration: create extraction_feedback_events audit table.
 """
@@ -7,7 +7,6 @@ from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import JSONB, UUID
 
 # revision identifiers
 revision = "e1f2a3b4c5d6"
@@ -21,33 +20,32 @@ def upgrade() -> None:
         "extraction_feedback_events",
         sa.Column(
             "id",
-            UUID(as_uuid=True),
+            sa.Uuid(as_uuid=True),
             primary_key=True,
-            server_default=sa.text("gen_random_uuid()"),
         ),
         sa.Column(
             "candidate_id",
-            UUID(as_uuid=True),
+            sa.Uuid(as_uuid=True),
             sa.ForeignKey("extraction_candidates.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "session_id",
-            UUID(as_uuid=True),
+            sa.Uuid(as_uuid=True),
             sa.ForeignKey("extraction_sessions.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "user_id",
-            UUID(as_uuid=True),
+            sa.Uuid(as_uuid=True),
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
         sa.Column("event_type", sa.String(32), nullable=False),
         sa.Column("note", sa.Text, nullable=True),
-        sa.Column("changed_fields", JSONB, nullable=True),
-        sa.Column("old_values", JSONB, nullable=True),
-        sa.Column("new_values", JSONB, nullable=True),
+        sa.Column("changed_fields", sa.JSON(), nullable=True),
+        sa.Column("old_values", sa.JSON(), nullable=True),
+        sa.Column("new_values", sa.JSON(), nullable=True),
         sa.Column(
             "event_timestamp",
             sa.DateTime(timezone=True),

@@ -1,4 +1,4 @@
-"""universal_extraction_fields
+﻿"""universal_extraction_fields
 
 Revision ID: d5e6f7a8b9c0
 Revises: c3d4e5f6a7b8
@@ -27,7 +27,6 @@ from typing import Sequence, Union
 
 import sqlalchemy as sa
 from alembic import op
-from sqlalchemy.dialects.postgresql import JSONB
 
 revision: str = "d5e6f7a8b9c0"
 down_revision: Union[str, None] = "c3d4e5f6a7b8"
@@ -51,7 +50,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "extraction_sessions",
-        sa.Column("detection_metadata", JSONB(), nullable=True),
+        sa.Column("detection_metadata", sa.JSON(), nullable=True),
     )
 
     # ── extraction_candidates ─────────────────────────────────────────────────
@@ -69,7 +68,7 @@ def upgrade() -> None:
     )
     op.add_column(
         "extraction_candidates",
-        sa.Column("coordinates", JSONB(), nullable=True),
+        sa.Column("coordinates", sa.JSON(), nullable=True),
     )
     op.add_column(
         "extraction_candidates",
