@@ -35,6 +35,7 @@ BASE_URL   = "https://kmco.sa"
 SHOP_URL   = "https://kmco.sa/shop/"
 SOURCE_NAME = "KMCO"
 BRAND_NAME  = "KM"          # all products are KMCO's own brand
+_CHARSET_FIXED = False  # run utf8mb4 ALTER TABLE only once
 
 HEADERS = {
     "User-Agent": (

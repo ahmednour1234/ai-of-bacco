@@ -61,6 +61,7 @@ SEED_CATEGORIES = [
 
 CONCURRENCY = 5
 _SEM: Optional[asyncio.Semaphore] = None
+_CHARSET_FIXED = False  # run utf8mb4 ALTER TABLE only once
 
 
 # ─── helpers ─────────────────────────────────────────────────────────────────

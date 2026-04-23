@@ -67,6 +67,7 @@ HEADERS = {
 CONCURRENCY = 12
 _SEM: Optional[asyncio.Semaphore] = None
 _BATCH_SAVE = 50   # save to DB every N products
+_CHARSET_FIXED = False  # run utf8mb4 ALTER TABLE only once
 
 
 # ─── helpers ──────────────────────────────────────────────────────────────────
