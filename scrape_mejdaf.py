@@ -405,19 +405,25 @@ async def main() -> None:
             if result:
                 batch.append(result)
             if len(batch) >= _BATCH_SAVE:
-                ins, upd, skp = save_to_sqlite(batch)
-                total_inserted += ins
-                total_updated  += upd
-                total_skipped  += skp
+                try:
+                    ins, upd, skp = save_to_sqlite(batch)
+                    total_inserted += ins
+                    total_updated  += upd
+                    total_skipped  += skp
+                except Exception as db_err:
+                    print(f"  [save error] {db_err}")
                 batch = []
             if done % 50 == 0 or done == total:
                 print(f"  [{done}/{total}] inserted={total_inserted} updated={total_updated}")
 
         if batch:
-            ins, upd, skp = save_to_sqlite(batch)
-            total_inserted += ins
-            total_updated  += upd
-            total_skipped  += skp
+            try:
+                ins, upd, skp = save_to_sqlite(batch)
+                total_inserted += ins
+                total_updated  += upd
+                total_skipped  += skp
+            except Exception as db_err:
+                print(f"  [save error] {db_err}")
 
     print(f"\n[3/3] DONE — inserted={total_inserted}, updated={total_updated}, skipped={total_skipped}")
 

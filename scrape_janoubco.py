@@ -529,12 +529,15 @@ async def main():
                 batch.append(result)
 
             if len(batch) >= _BATCH_SAVE or (done == n and batch):
-                ins, upd, sk = save_to_sqlite(batch)
-                total_ins  += ins
-                total_upd  += upd
-                total_skip += sk
-                print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
-                      f"{sk} skipped (total new: {total_ins})")
+                try:
+                    ins, upd, sk = save_to_sqlite(batch)
+                    total_ins  += ins
+                    total_upd  += upd
+                    total_skip += sk
+                    print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
+                          f"{sk} skipped (total new: {total_ins})")
+                except Exception as db_err:
+                    print(f"  [save error] {db_err}")
                 batch = []
 
     print(f"\n{'=' * 60}")
