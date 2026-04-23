@@ -232,6 +232,9 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
             "ALTER TABLE `scraper_products` MODIFY COLUMN `external_id` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
             "ALTER TABLE `scraper_products` MODIFY COLUMN `sku` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
             "ALTER TABLE `scraper_products` MODIFY COLUMN `hash` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "DROP INDEX `ix_scraper_products_source_url` ON `scraper_products`",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `source_url` VARCHAR(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+            "CREATE INDEX `ix_scraper_products_source_url` ON `scraper_products` (`source_id`, `source_url`(191))",
         ]:
             try:
                 with engine.connect() as _conn:
