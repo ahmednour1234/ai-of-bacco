@@ -30,7 +30,7 @@ def upgrade() -> None:
             "active",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("true"),
+            server_default=sa.text("1"),
         ),
         sa.Column(
             "created_at",
@@ -128,7 +128,7 @@ def upgrade() -> None:
             "is_synced",
             sa.Boolean(),
             nullable=False,
-            server_default=sa.text("false"),
+            server_default=sa.text("0"),
         ),
         sa.Column("synced_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("last_scraped_at", sa.DateTime(timezone=True), nullable=True),

@@ -73,7 +73,7 @@ class ScraperProduct(ScraperTimestampMixin, ScraperBase):
 
     # ── Sync state ─────────────────────────────────────────────────────────────
     is_synced: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=False, server_default="false", index=True
+        Boolean, nullable=False, default=False, server_default="0", index=True
     )
     synced_at: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True

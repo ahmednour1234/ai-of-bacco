@@ -206,7 +206,10 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
     from sqlalchemy import create_engine, select
     from sqlalchemy.orm import Session
 
-    engine = create_engine(f"sqlite:///{_DB_FILE}", echo=False)
+    engine = create_engine(
+        os.environ.get("SCRAPER_DATABASE_URL_SYNC", f"sqlite:///{_DB_FILE}"),
+        echo=False,
+    )
     ScraperBase.metadata.create_all(engine)
 
     inserted = updated = skipped = 0

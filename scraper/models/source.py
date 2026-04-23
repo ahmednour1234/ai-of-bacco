@@ -21,7 +21,7 @@ class ScraperSource(ScraperTimestampMixin, ScraperBase):
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
     base_url: Mapped[str] = mapped_column(String(2048), nullable=False)
     active: Mapped[bool] = mapped_column(
-        Boolean, nullable=False, default=True, server_default="true"
+        Boolean, nullable=False, default=True, server_default="1"
     )
 
     # ── Relationships ──────────────────────────────────────────────────────────

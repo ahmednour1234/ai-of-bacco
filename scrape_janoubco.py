@@ -315,161 +315,120 @@ async def fetch_product(client: httpx.AsyncClient, url: str) ->Optional[ dict]:
 # ─── STEP 4: save batch to SQLite ────────────────────────────────────────────
 
 def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
-    """Write products directly via stdlib sqlite3 — no ORM or pydantic needed."""
-    import sqlite3
-    now = datetime.now().isoformat(sep=" ", timespec="seconds")
+    """Write products via SQLAlchemy ORM — supports both SQLite and MySQL."""
+    from scraper.models.source import ScraperSource
+    from scraper.models.category import ScraperCategory
+    from scraper.models.brand import ScraperBrand
+    from scraper.models.product import ScraperProduct
+    from scraper.core.database import ScraperBase
+    from sqlalchemy import create_engine, select
+    from sqlalchemy.orm import Session
 
-    con = sqlite3.connect(_DB_FILE)
-    con.execute("PRAGMA journal_mode=WAL")
-    # Ensure tables exist (minimal DDL; full schema created by Alembic on first run)
-    con.executescript("""
-        CREATE TABLE IF NOT EXISTS scraper_sources (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name VARCHAR(255) UNIQUE NOT NULL,
-            base_url VARCHAR(2048),
-            active BOOLEAN DEFAULT 1,
-            created_at DATETIME,
-            updated_at DATETIME
-        );
-        CREATE TABLE IF NOT EXISTS scraper_brands (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_id INTEGER NOT NULL,
-            external_id VARCHAR(255),
-            name VARCHAR(500) NOT NULL,
-            created_at DATETIME,
-            updated_at DATETIME,
-            UNIQUE(source_id, name)
-        );
-        CREATE TABLE IF NOT EXISTS scraper_categories (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_id INTEGER NOT NULL,
-            external_id VARCHAR(255),
-            name VARCHAR(500) NOT NULL,
-            url VARCHAR(2048),
-            created_at DATETIME,
-            updated_at DATETIME,
-            UNIQUE(source_id, name)
-        );
-        CREATE TABLE IF NOT EXISTS scraper_products (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            source_id INTEGER NOT NULL,
-            scraper_category_id INTEGER,
-            scraper_brand_id INTEGER,
-            external_id VARCHAR(255),
-            source_url VARCHAR(2048),
-            sku VARCHAR(255),
-            name VARCHAR(1000) NOT NULL,
-            description TEXT,
-            specifications TEXT,
-            price NUMERIC(12,2),
-            raw_data TEXT,
-            hash VARCHAR(255),
-            is_synced BOOLEAN DEFAULT 0,
-            synced_at DATETIME,
-            last_scraped_at DATETIME,
-            created_at DATETIME,
-            updated_at DATETIME
-        );
-    """)
-
-    # Get or create source
-    row = con.execute("SELECT id FROM scraper_sources WHERE name=?", (SOURCE_NAME,)).fetchone()
-    if row:
-        source_id = row[0]
-    else:
-        cur = con.execute(
-            "INSERT INTO scraper_sources(name,base_url,active,created_at,updated_at) VALUES(?,?,1,?,?)",
-            (SOURCE_NAME, BASE_URL, now, now),
-        )
-        source_id = cur.lastrowid
-        con.commit()
-
-    brand_cache: dict[str, int] = {}
-    cat_cache:   dict[str, int] = {}
-
-    def get_brand(name: str) -> int:
-        if name not in brand_cache:
-            r = con.execute(
-                "SELECT id FROM scraper_brands WHERE source_id=? AND name=?",
-                (source_id, name),
-            ).fetchone()
-            if r:
-                brand_cache[name] = r[0]
-            else:
-                cur = con.execute(
-                    "INSERT INTO scraper_brands(source_id,name,external_id,created_at,updated_at) VALUES(?,?,?,?,?)",
-                    (source_id, name, re.sub(r"[^\w]", "_", name.lower())[:80], now, now),
-                )
-                brand_cache[name] = cur.lastrowid
-        return brand_cache[name]
-
-    def get_category(name: str) -> int:
-        if name not in cat_cache:
-            r = con.execute(
-                "SELECT id FROM scraper_categories WHERE source_id=? AND name=?",
-                (source_id, name),
-            ).fetchone()
-            if r:
-                cat_cache[name] = r[0]
-            else:
-                ext_id = re.sub(r"[^\w]", "_", name.lower())[:80]
-                cur = con.execute(
-                    "INSERT INTO scraper_categories(source_id,name,external_id,url,created_at,updated_at) VALUES(?,?,?,?,?,?)",
-                    (source_id, name, ext_id, "", now, now),
-                )
-                cat_cache[name] = cur.lastrowid
-        return cat_cache[name]
+    db_url = os.environ.get("SCRAPER_DATABASE_URL_SYNC", f"sqlite:///{_DB_FILE}")
+    engine = create_engine(db_url, echo=False)
+    ScraperBase.metadata.create_all(engine)
 
     inserted = updated = skipped = 0
 
-    for raw in products:
-        name = (raw.get("name") or "").strip()
-        if not name:
-            skipped += 1
-            continue
+    with Session(engine) as session:
+        source = session.execute(
+            select(ScraperSource).where(ScraperSource.name == SOURCE_NAME)
+        ).scalar_one_or_none()
+        if not source:
+            source = ScraperSource(name=SOURCE_NAME, base_url=BASE_URL, active=True)
+            session.add(source)
+            session.flush()
 
-        external_id = raw.get("external_id", "")
-        sku         = raw.get("sku") or external_id
-        price       = raw.get("price")
-        source_url  = raw.get("source_url", "")
-        brand_name  = (raw.get("brand") or "Janoubco").strip()
-        cat_name    = (raw.get("category") or "General").strip()
+        brand_cache: dict[str, ScraperBrand] = {}
+        cat_cache:   dict[str, ScraperCategory] = {}
 
-        cat_id   = get_category(cat_name)
-        brand_id = get_brand(brand_name)
-        raw_json = json.dumps(raw, ensure_ascii=False, default=str)
+        def get_brand(name: str) -> ScraperBrand:
+            if name not in brand_cache:
+                b = session.execute(
+                    select(ScraperBrand).where(
+                        ScraperBrand.source_id == source.id,
+                        ScraperBrand.name == name,
+                    )
+                ).scalar_one_or_none()
+                if not b:
+                    b = ScraperBrand(source_id=source.id, name=name,
+                                     external_id=re.sub(r"[^\w]", "_", name.lower())[:80])
+                    session.add(b)
+                    session.flush()
+                brand_cache[name] = b
+            return brand_cache[name]
 
-        existing = None
-        if external_id:
-            existing = con.execute(
-                "SELECT id FROM scraper_products WHERE source_id=? AND external_id=?",
-                (source_id, external_id),
-            ).fetchone()
+        def get_category(name: str) -> ScraperCategory:
+            if name not in cat_cache:
+                c = session.execute(
+                    select(ScraperCategory).where(
+                        ScraperCategory.source_id == source.id,
+                        ScraperCategory.name == name,
+                    )
+                ).scalar_one_or_none()
+                if not c:
+                    c = ScraperCategory(source_id=source.id, name=name,
+                                        external_id=re.sub(r"[^\w]", "_", name.lower())[:80],
+                                        url="")
+                    session.add(c)
+                    session.flush()
+                cat_cache[name] = c
+            return cat_cache[name]
 
-        if existing:
-            con.execute(
-                """UPDATE scraper_products
-                   SET name=?, sku=?, price=?, source_url=?,
-                       scraper_category_id=?, scraper_brand_id=?,
-                       raw_data=?, last_scraped_at=?, updated_at=?
-                   WHERE id=?""",
-                (name, sku, price, source_url, cat_id, brand_id, raw_json, now, now, existing[0]),
-            )
-            updated += 1
-        else:
-            con.execute(
-                """INSERT INTO scraper_products
-                   (source_id, scraper_category_id, scraper_brand_id,
-                    external_id, source_url, sku, name, price, raw_data,
-                    is_synced, last_scraped_at, created_at, updated_at)
-                   VALUES (?,?,?,?,?,?,?,?,?,0,?,?,?)""",
-                (source_id, cat_id, brand_id, external_id, source_url,
-                 sku, name, price, raw_json, now, now, now),
-            )
-            inserted += 1
+        for raw in products:
+            name = (raw.get("name") or "").strip()
+            if not name:
+                skipped += 1
+                continue
 
-    con.commit()
-    con.close()
+            external_id = raw.get("external_id", "")
+            sku         = raw.get("sku") or external_id
+            price       = raw.get("price")
+            source_url  = raw.get("source_url", "")
+            brand_name  = (raw.get("brand") or "Janoubco").strip()
+            cat_name    = (raw.get("category") or "General").strip()
+
+            category = get_category(cat_name)
+            brand    = get_brand(brand_name)
+            raw_json = json.dumps(raw, ensure_ascii=False, default=str)
+
+            existing = None
+            if external_id:
+                existing = session.execute(
+                    select(ScraperProduct).where(
+                        ScraperProduct.source_id == source.id,
+                        ScraperProduct.external_id == external_id,
+                    )
+                ).scalar_one_or_none()
+
+            if existing:
+                existing.name                = name
+                existing.sku                 = sku
+                existing.price               = price
+                existing.source_url          = source_url
+                existing.scraper_category_id = category.id
+                existing.scraper_brand_id    = brand.id
+                existing.raw_data            = raw_json
+                existing.last_scraped_at     = datetime.now()
+                updated += 1
+            else:
+                session.add(ScraperProduct(
+                    source_id=source.id,
+                    external_id=external_id,
+                    sku=sku,
+                    name=name,
+                    price=price,
+                    source_url=source_url,
+                    scraper_category_id=category.id,
+                    scraper_brand_id=brand.id,
+                    raw_data=raw_json,
+                    last_scraped_at=datetime.now(),
+                    is_synced=False,
+                ))
+                inserted += 1
+
+        session.commit()
+
     return inserted, updated, skipped
 
 
