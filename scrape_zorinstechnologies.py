@@ -367,11 +367,25 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
     ScraperBase.metadata.create_all(engine)
     global _CHARSET_FIXED
     if "mysql" in db_url and not _CHARSET_FIXED:
-        for _t in ["scraper_sources", "scraper_categories", "scraper_brands",
-                   "scraper_products", "scraper_sync_logs"]:
+        for _t in ["scraper_sources", "scraper_categories", "scraper_brands", "scraper_sync_logs"]:
             try:
                 with engine.connect() as _conn:
                     _conn.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    _conn.commit()
+            except Exception:
+                pass
+        for _stmt in [
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `name` VARCHAR(1000) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci NOT NULL",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `description` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `specifications` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `raw_data` TEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `external_id` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `sku` VARCHAR(191) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+            "ALTER TABLE `scraper_products` MODIFY COLUMN `hash` VARCHAR(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci",
+        ]:
+            try:
+                with engine.connect() as _conn:
+                    _conn.execute(text(_stmt))
                     _conn.commit()
             except Exception:
                 pass
