@@ -60,7 +60,7 @@ def upgrade() -> None:
         sa.Column("brand", sa.String(length=255), nullable=True),
         sa.Column("category", sa.String(length=255), nullable=True),
         sa.Column("price", sa.Float(), nullable=True),
-        sa.Column("needs_review", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("needs_review", sa.Boolean(), nullable=False, server_default="0"),
         # Human correction
         sa.Column("status", sa.String(length=32), nullable=False, server_default="pending"),
         sa.Column("corrected_label", sa.String(length=32), nullable=True),
@@ -93,7 +93,7 @@ def upgrade() -> None:
         sa.Column("source", sa.String(length=64), nullable=False, server_default="user_correction"),
         sa.Column("examples_count", sa.Integer(), nullable=False, server_default="0"),
         sa.Column("category_hint", sa.String(length=255), nullable=True),
-        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column("is_active", sa.Boolean(), nullable=False, server_default="1"),
         sa.Column("id", sa.UUID(), nullable=False),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
