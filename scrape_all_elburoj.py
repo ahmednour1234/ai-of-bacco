@@ -20,7 +20,8 @@ import sys
 import os
 import random
 from collections import Counter
-from datetime import datetime
+from datetime import datetime, timezone
+_NOW = lambda: datetime.now(timezone.utc)
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
@@ -635,7 +636,7 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
                     existing.scraper_category_id = category.id
                     existing.scraper_brand_id    = brand.id if brand else None
                     existing.raw_data            = raw_json
-                    existing.last_scraped_at     = datetime.utcnow()
+                    existing.last_scraped_at     = _NOW()
                     updated += 1
                 else:
                     session.add(ScraperProduct(
@@ -648,7 +649,7 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
                         scraper_category_id=category.id,
                         scraper_brand_id=brand.id if brand else None,
                         raw_data=raw_json,
-                        last_scraped_at=datetime.utcnow(),
+                        last_scraped_at=_NOW(),
                         is_synced=False,
                     ))
                     inserted += 1
