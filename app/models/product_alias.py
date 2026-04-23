@@ -14,8 +14,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import ForeignKey, String, Text
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import ForeignKey, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,7 +29,7 @@ class ProductAlias(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── FK ────────────────────────────────────────────────────────────────────
     product_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("products.id", ondelete="CASCADE"),
         nullable=False,
         index=True,

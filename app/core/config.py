@@ -49,12 +49,12 @@ class Settings(BaseSettings):
         return [o.strip() for o in self.ALLOWED_ORIGINS.split(",") if o.strip()]
 
     # ── Database ──────────────────────────────────────────────────────────────
-    DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/qumta_db"
-    DATABASE_URL_SYNC: str = "postgresql+psycopg2://postgres:password@localhost:5432/qumta_db"
+    DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/qumta_db"
+    DATABASE_URL_SYNC: str = "mysql+pymysql://root:password@localhost:3306/qumta_db"
 
     # ── Scraper Database ───────────────────────────────────────────────────────
-    SCRAPER_DATABASE_URL: str = "postgresql+asyncpg://postgres:password@localhost:5432/scraper_db"
-    SCRAPER_DATABASE_URL_SYNC: str = "postgresql+psycopg2://postgres:password@localhost:5432/scraper_db"
+    SCRAPER_DATABASE_URL: str = "mysql+aiomysql://root:password@localhost:3306/scraper_db"
+    SCRAPER_DATABASE_URL_SYNC: str = "mysql+pymysql://root:password@localhost:3306/scraper_db"
 
     # ── Scraper Sync API ───────────────────────────────────────────────────────
     SCRAPER_SYNC_API_URL: str = "https://api.example.com/v1/products/import"
@@ -82,7 +82,7 @@ class Settings(BaseSettings):
     AWS_S3_BUCKET: str = "qumta-uploads"
     AWS_S3_ENDPOINT_URL: str = ""
 
-    # ── pgvector / Embeddings ─────────────────────────────────────────────────
+    # ── Embeddings ────────────────────────────────────────────────────────────
     EMBEDDING_DIMENSIONS: int = 1536
 
     # ── AI / LLM ──────────────────────────────────────────────────────────────

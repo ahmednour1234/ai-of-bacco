@@ -12,8 +12,7 @@ produced by the extraction pipeline.  The status field drives the review UI:
 
 from __future__ import annotations
 
-from sqlalchemy import Boolean, Float, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import Boolean, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -44,7 +43,7 @@ class ExtractionSession(UUIDMixin, TimestampMixin, Base):
     document_type_guess: Mapped[str | None] = mapped_column(String(64), nullable=True)
     detection_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
     # Stores raw LLM responses / heuristic scores for auditability + fine-tuning
-    detection_metadata: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    detection_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     candidates: Mapped[list["ExtractionCandidate"]] = relationship(  # noqa: F821
         "ExtractionCandidate",

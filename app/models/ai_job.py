@@ -11,8 +11,7 @@ import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, Enum, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, Enum, ForeignKey, JSON, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -55,15 +54,15 @@ class AIJob(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── Context ───────────────────────────────────────────────────────────────
     document_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
 
     # ── Payload & Result ──────────────────────────────────────────────────────
-    payload: Mapped[dict | None] = mapped_column(JSONB, nullable=True, default=dict)
-    result: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
+    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Timing ────────────────────────────────────────────────────────────────

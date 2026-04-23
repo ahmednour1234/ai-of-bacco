@@ -6,8 +6,7 @@ Represents a product supplier / vendor.
 
 from __future__ import annotations
 
-from sqlalchemy import String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -23,7 +22,7 @@ class Supplier(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     website: Mapped[str | None] = mapped_column(String(512), nullable=True)
     country: Mapped[str | None] = mapped_column(String(100), nullable=True)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True, default=dict)
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     supplier_products: Mapped[list["SupplierProduct"]] = relationship(  # noqa: F821

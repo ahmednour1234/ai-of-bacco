@@ -7,8 +7,7 @@ Equivalent to a Laravel Eloquent Product model.
 
 from __future__ import annotations
 
-from sqlalchemy import String, Text
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy import JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -31,7 +30,7 @@ class Product(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     # ── Flexible Metadata ─────────────────────────────────────────────────────
     # Store extra structured data (brand, dimensions, etc.) without schema changes.
     # Equivalent to Laravel JSON cast: protected $casts = ['metadata' => 'array']
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True, default=dict)
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     aliases: Mapped[list["ProductAlias"]] = relationship(  # noqa: F821

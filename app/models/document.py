@@ -10,8 +10,7 @@ from __future__ import annotations
 import enum
 import uuid
 
-from sqlalchemy import Enum, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Enum, ForeignKey, JSON, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -38,7 +37,7 @@ class Document(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ── Source ────────────────────────────────────────────────────────────────
     uploaded_file_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("uploaded_files.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -60,7 +59,7 @@ class Document(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ── Content ───────────────────────────────────────────────────────────────
     raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    parsed_data: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    parsed_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────

@@ -18,8 +18,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Boolean, Float, ForeignKey, Integer, String, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Boolean, Float, ForeignKey, Integer, JSON, String, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -30,7 +29,7 @@ class ExtractionCandidate(UUIDMixin, TimestampMixin, Base):
     __tablename__ = "extraction_candidates"
 
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("extraction_sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -64,7 +63,7 @@ class ExtractionCandidate(UUIDMixin, TimestampMixin, Base):
     region_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
     page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
     # Bounding box: {x0, y0, x1, y1, page} in document coordinates
-    coordinates: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    coordinates: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     # "llm" | "heuristic"
     classification_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
 

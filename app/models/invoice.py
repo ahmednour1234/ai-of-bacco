@@ -10,8 +10,7 @@ from __future__ import annotations
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy import Date, ForeignKey, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -23,13 +22,13 @@ class Invoice(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
 
     # ── Source ────────────────────────────────────────────────────────────────
     document_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
     supplier_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("suppliers.id", ondelete="SET NULL"),
         nullable=True,
         index=True,

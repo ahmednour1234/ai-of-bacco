@@ -9,8 +9,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import Float, ForeignKey, Text
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Float, ForeignKey, JSON, Text, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -22,7 +21,7 @@ class ExtractedItem(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── Source ────────────────────────────────────────────────────────────────
     document_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -34,7 +33,7 @@ class ExtractedItem(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── Matching ──────────────────────────────────────────────────────────────
     matched_product_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("products.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -43,7 +42,7 @@ class ExtractedItem(UUIDMixin, TimestampMixin, TenantMixin, Base):
     is_reviewed: Mapped[bool] = mapped_column(default=False, nullable=False)
 
     # ── Flexible Metadata ─────────────────────────────────────────────────────
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True, default=dict)
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     document: Mapped["Document"] = relationship(  # noqa: F821

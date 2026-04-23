@@ -11,8 +11,7 @@ import enum
 import uuid
 from datetime import date
 
-from sqlalchemy import Date, Enum, Float, ForeignKey, Numeric, String
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import Date, Enum, Float, ForeignKey, JSON, Numeric, String, Uuid
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -32,7 +31,7 @@ class PriceEstimation(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── FK ────────────────────────────────────────────────────────────────────
     product_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("products.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
@@ -54,7 +53,7 @@ class PriceEstimation(UUIDMixin, TimestampMixin, TenantMixin, Base):
     valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
 
     # ── Extra Context ─────────────────────────────────────────────────────────
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSONB, nullable=True, default=dict)
+    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     product: Mapped["Product"] = relationship(  # noqa: F821

@@ -21,8 +21,7 @@ from __future__ import annotations
 import uuid
 from datetime import datetime
 
-from sqlalchemy import DateTime, ForeignKey, String, Text, func
-from sqlalchemy.dialects.postgresql import JSONB, UUID
+from sqlalchemy import DateTime, ForeignKey, JSON, String, Text, Uuid, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.core.database import Base
@@ -34,19 +33,19 @@ class ExtractionFeedbackEvent(UUIDMixin, Base):
 
     # ── Foreign keys ───────────────────────────────────────────────────────────
     candidate_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("extraction_candidates.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     session_id: Mapped[uuid.UUID] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("extraction_sessions.id", ondelete="CASCADE"),
         nullable=False,
         index=True,
     )
     user_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True),
+        Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
@@ -61,13 +60,13 @@ class ExtractionFeedbackEvent(UUIDMixin, Base):
 
     # ── Change payload ─────────────────────────────────────────────────────────
     # ["product_name", "quantity", "unit", …]
-    changed_fields: Mapped[list | None] = mapped_column(JSONB, nullable=True)
+    changed_fields: Mapped[list | None] = mapped_column(JSON, nullable=True)
 
     # Snapshot of the candidate values BEFORE the correction was applied
-    old_values: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    old_values: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # Snapshot of the new / corrected values
-    new_values: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    new_values: Mapped[dict | None] = mapped_column(JSON, nullable=True)
 
     # ── Timestamp ─────────────────────────────────────────────────────────────
     # Separate from UUIDMixin (no TimestampMixin — immutable rows, created_at only)
