@@ -19,16 +19,56 @@ from http.server import BaseHTTPRequestHandler, HTTPServer
 
 # --- Scraper process state (keyed by scraper name) ---
 _SCRAPERS = {
-    "elburoj":       "scrape_elburoj_playwright.py",
-    "electric-house": "scrape_electric_house.py",
-    "janoubco":      "scrape_janoubco.py",
-    "microless":     "scrape_microless.py",
-    "mejdaf":        "scrape_mejdaf.py",
-    "baytalebaa":    "scrape_baytalebaa.py",
+    "elburoj":        "scrape_all_elburoj.py",
+    "electric-house":  "scrape_electric_house.py",
+    "janoubco":        "scrape_janoubco.py",
+    "microless":       "scrape_microless.py",
+    "mejdaf":          "scrape_mejdaf.py",
+    "baytalebaa":      "scrape_baytalebaa.py",
 }
 _scraper_procs: dict[str, object] = {}
 _scraper_logs:  dict[str, list]   = {k: [] for k in _SCRAPERS}
 _scraper_lock = threading.Lock()
+
+_refetch_proc   = None
+_refetch_log:   list  = []
+_refetch_lock   = threading.Lock()
+
+def _refetch_status() -> str:
+    with _refetch_lock:
+        if _refetch_proc is None:
+            return "idle"
+        ret = _refetch_proc.poll()
+        if ret is None:
+            return "running"
+        return "done" if ret == 0 else f"error:{ret}"
+
+def _collect_refetch_output(proc):
+    global _refetch_log
+    for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        with _refetch_lock:
+            _refetch_log.append(line)
+            if len(_refetch_log) > 500:
+                _refetch_log = _refetch_log[-500:]
+
+def _run_price_refetch():
+    global _refetch_proc, _refetch_log
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fix_missing_prices.py")
+    with _refetch_lock:
+        if _refetch_proc is not None and _refetch_proc.poll() is None:
+            return
+        _refetch_log = []
+        env = os.environ.copy()
+        new_proc = subprocess.Popen(
+            [sys.executable, script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        _refetch_proc = new_proc
+    threading.Thread(target=_collect_refetch_output, args=(new_proc,), daemon=True).start()
 
 def _scraper_status(name: str = "elburoj") -> str:
     with _scraper_lock:
@@ -73,6 +113,33 @@ DB_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scraper_data
 PORT = 8765
 
 
+def query_price_stats():
+    """Return per-source price coverage stats."""
+    if not os.path.exists(DB_PATH):
+        return []
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT
+                s.name AS source,
+                COUNT(*) AS total,
+                SUM(CASE WHEN p.price IS NOT NULL AND p.price > 0 THEN 1 ELSE 0 END) AS with_price,
+                SUM(CASE WHEN p.price IS NULL OR p.price = 0 THEN 1 ELSE 0 END) AS no_price,
+                ROUND(100.0 * SUM(CASE WHEN p.price IS NOT NULL AND p.price > 0 THEN 1 ELSE 0 END) / COUNT(*), 1) AS pct,
+                ROUND(MIN(CASE WHEN p.price > 0 THEN p.price END), 2) AS min_price,
+                ROUND(MAX(CASE WHEN p.price > 0 THEN p.price END), 2) AS max_price,
+                ROUND(AVG(CASE WHEN p.price > 0 THEN p.price END), 2) AS avg_price
+            FROM scraper_products p
+            LEFT JOIN scraper_sources s ON p.source_id = s.id
+            GROUP BY s.name
+            ORDER BY total DESC
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
+
+
 def query_db():
     if not os.path.exists(DB_PATH):
         return {"error": "DB not found yet", "products": [], "stats": {}, "categories": [], "brands": []}
@@ -84,10 +151,12 @@ def query_db():
         products = conn.execute("""
             SELECT p.id, p.sku, p.name, p.price, p.source_url, p.is_synced,
                    b.name AS brand_name,
-                   c.name AS category_name
+                   c.name AS category_name,
+                   s.name AS source_name
             FROM scraper_products p
             LEFT JOIN scraper_brands b ON p.scraper_brand_id = b.id
             LEFT JOIN scraper_categories c ON p.scraper_category_id = c.id
+            LEFT JOIN scraper_sources s ON p.source_id = s.id
             ORDER BY p.id DESC
             LIMIT 500
         """).fetchall()
@@ -175,6 +244,19 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
 .brand-list{display:flex;flex-wrap:wrap;gap:6px;padding:12px 16px}
 .brand-chip{background:#161b27;border:1px solid #21283a;border-radius:20px;padding:3px 10px;font-size:.78rem;direction:rtl}
 .brand-chip span{color:#58a6ff;font-weight:700}
+.filter-btn{background:#161b27;border:1px solid #21283a;color:#7d8590;padding:5px 12px;border-radius:6px;font-size:.82rem;cursor:pointer;transition:all .1s}
+.filter-btn.active{background:#1c2333;border-color:#58a6ff;color:#58a6ff}
+.filter-btn:hover{background:#1c2333}
+.pc-table{width:100%;border-collapse:collapse;font-size:.86rem;margin-top:8px}
+.pc-table th{padding:10px 14px;text-align:left;color:#7d8590;font-weight:600;border-bottom:2px solid #21283a}
+.pc-table td{padding:10px 14px;border-bottom:1px solid #161b27}
+.pc-table tr:hover td{background:#161b27}
+.pc-bar{height:10px;border-radius:5px;background:#21283a;overflow:hidden;min-width:120px}
+.pc-fill{height:100%;background:#22c55e;transition:width .4s}
+.pc-fill.low{background:#f85149}
+.pc-fill.mid{background:#f59e0b}
+.bad-name{color:#f85149;font-style:italic}
+.source-badge{font-size:.72rem;background:#1c2333;border:1px solid #21283a;border-radius:10px;padding:1px 7px;color:#7d8590}
 .tabs{display:flex;gap:2px;padding:0 16px;border-bottom:1px solid #21283a;background:#0d1117;position:sticky;top:0;z-index:11}
 .tab{padding:8px 16px;cursor:pointer;color:#7d8590;font-size:.84rem;border-bottom:2px solid transparent;transition:color .1s}
 .tab.active{color:#58a6ff;border-bottom-color:#58a6ff}
@@ -214,6 +296,14 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
       style="background:#10b981;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
       ▶ Baytalebaa
     </button>
+    <button id="refetch-btn" onclick="refetchPrices(this)"
+      style="background:#8b5cf6;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ↺ Refetch Prices
+    </button>
+    <button onclick="window.open('/api/export','_blank')"
+      style="background:#64748b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ⬇ Export JSON
+    </button>
     <button id="run-btn-all" onclick="runAll(this)"
       style="background:#f59e0b;color:#000;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
       ▶ Run All
@@ -241,11 +331,15 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
     <div class="tabs">
       <div class="tab active" onclick="showTab('products',this)">Products</div>
       <div class="tab" onclick="showTab('brands',this)">Brands</div>
+      <div class="tab" onclick="showTab('price-check',this)">💰 Price Check</div>
     </div>
 
     <div id="tab-products">
       <div class="toolbar">
         <input type="text" id="search" placeholder="Search name, SKU, brand..." oninput="applyFilter()">
+        <button class="filter-btn active" id="f-all"     onclick="setPriceFilter('all',this)">All</button>
+        <button class="filter-btn"        id="f-priced"  onclick="setPriceFilter('priced',this)">✓ Has Price</button>
+        <button class="filter-btn"        id="f-noPrice" onclick="setPriceFilter('noPrice',this)">✗ No Price</button>
         <span class="count" id="shown-count"></span>
       </div>
       <table id="ptable">
@@ -257,6 +351,7 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
             <th>Price (SAR)</th>
             <th>Brand</th>
             <th>Category</th>
+            <th>Source</th>
             <th>URL</th>
           </tr>
         </thead>
@@ -266,6 +361,12 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
 
     <div id="tab-brands" style="display:none">
       <div class="brand-list" id="brand-list"></div>
+    </div>
+
+    <div id="tab-price-check" style="display:none;padding:20px">
+      <h2 style="color:#58a6ff;margin-bottom:16px;font-size:1.1rem">💰 Price Coverage by Scraper</h2>
+      <div id="price-check-content" style="color:#7d8590">Loading...</div>
+      <pre id="refetch-log" style="display:none;margin-top:16px;padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.78rem;color:#22c55e;max-height:260px;overflow-y:auto;white-space:pre-wrap"></pre>
     </div>
   </div>
 </div>
@@ -287,14 +388,24 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
 let allProducts = [];
 let activeCategory = null;
 let knownIds = new Set();
+let _priceFilter = 'all'; // 'all' | 'priced' | 'noPrice'
+
+function setPriceFilter(mode, btn){
+  _priceFilter = mode;
+  document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  applyFilter();
+}
 
 function esc(s){ return s==null?'':(s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 function showTab(name, el){
-  document.getElementById('tab-products').style.display = name==='products'?'':'none';
-  document.getElementById('tab-brands').style.display   = name==='brands'?'':'none';
+  document.getElementById('tab-products').style.display   = name==='products'?'':'none';
+  document.getElementById('tab-brands').style.display     = name==='brands'?'':'none';
+  document.getElementById('tab-price-check').style.display= name==='price-check'?'':'none';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
+  if(name==='price-check') loadPriceCheck();
 }
 
 function applyFilter(){
@@ -302,9 +413,11 @@ function applyFilter(){
   const rows = document.querySelectorAll('#tbody tr');
   let shown = 0;
   rows.forEach(r=>{
-    const catMatch = activeCategory===null || r.dataset.cat===activeCategory;
+    const catMatch  = activeCategory===null || r.dataset.cat===activeCategory;
     const textMatch = !q || r.dataset.text.includes(q);
-    const vis = catMatch && textMatch;
+    const hasPrice  = r.dataset.price === '1';
+    const priceMatch = _priceFilter==='all' || (_priceFilter==='priced' && hasPrice) || (_priceFilter==='noPrice' && !hasPrice);
+    const vis = catMatch && textMatch && priceMatch;
     r.style.display = vis ? '' : 'none';
     if(vis) shown++;
   });
@@ -349,19 +462,23 @@ async function refresh(){
       allProducts.unshift(p);
       const tr = document.createElement('tr');
       tr.className = 'new-row';
-      tr.dataset.cat = p.category_name||'';
-      tr.dataset.text = [(p.name||''),(p.sku||''),(p.brand_name||''),(p.category_name||'')].join(' ').toLowerCase();
+      tr.dataset.cat   = p.category_name||'';
+      tr.dataset.text  = [(p.name||''),(p.sku||''),(p.brand_name||''),(p.category_name||''),(p.source_name||'')].join(' ').toLowerCase();
+      tr.dataset.price = (p.price && p.price > 0) ? '1' : '0';
       const price = p.price&&p.price>0
         ? `<span class="price">${parseFloat(p.price).toFixed(2)}</span>`
         : `<span class="no-price">—</span>`;
       const url = p.source_url ? `<a class="url-link" href="${esc(p.source_url)}" target="_blank">🔗</a>` : '';
+      const isBadName = p.name && (p.name.includes('.com') || p.name.includes('.sa'));
+      const nameHtml = isBadName ? `<span class="bad-name" title="Suspicious name — page was likely blocked">⚠ ${esc(p.name)}</span>` : esc(p.name);
       tr.innerHTML = `
         <td>${esc(p.id)}</td>
-        <td class="name-ar">${esc(p.name)}</td>
+        <td class="name-ar">${nameHtml}</td>
         <td>${esc(p.sku)}</td>
         <td>${price}</td>
         <td class="brand-ar">${esc(p.brand_name)}</td>
         <td class="cat-ar">${esc(p.category_name)}</td>
+        <td><span class="source-badge">${esc(p.source_name||'')}</span></td>
         <td>${url}</td>`;
       tbody.prepend(tr);
     });
@@ -504,6 +621,73 @@ async function runAll(btn){
   }, 3000);
 }
 
+async function refetchPrices(btn){
+  if(btn){ btn.disabled=true; btn.textContent='⏳ Refetching...'; }
+  try{ await fetch('/api/run-refetch', {method:'POST'}); } catch(_){}
+  const logEl = document.getElementById('refetch-log');
+  if(logEl){ logEl.style.display='block'; logEl.textContent='Starting...'; }
+  const check = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/refetch-status');
+      const d = await r.json();
+      if(logEl && d.log) logEl.textContent = d.log.join('\n');
+      if(d.status !== 'running'){
+        clearInterval(check);
+        if(btn){ btn.disabled=false; btn.textContent='↺ Refetch Prices'; }
+        loadPriceCheck();
+      }
+    }catch(_){ clearInterval(check); if(btn){ btn.disabled=false; btn.textContent='↺ Refetch Prices'; } }
+  }, 2000);
+}
+
+async function loadPriceCheck(){
+  const el = document.getElementById('price-check-content');
+  el.textContent = 'Loading...';
+  try{
+    const res = await fetch('/api/price-stats');
+    const rows = await res.json();
+    if(!rows.length){ el.textContent='No data'; return; }
+    const totalAll = rows.reduce((s,r)=>s+(r.total||0),0);
+    const pricedAll = rows.reduce((s,r)=>s+(r.with_price||0),0);
+    const pctAll = totalAll>0 ? (100*pricedAll/totalAll).toFixed(1) : 0;
+    const fillClass = pct => pct>=70?'':'pct<40?low:mid';
+    let html = `
+      <div style="margin-bottom:16px;padding:14px;background:#161b27;border:1px solid #21283a;border-radius:10px;display:flex;gap:32px">
+        <div><div style="font-size:1.6rem;font-weight:700;color:#58a6ff">${pricedAll.toLocaleString()}</div><div style="color:#7d8590;font-size:.8rem">Total With Price</div></div>
+        <div><div style="font-size:1.6rem;font-weight:700;color:#f85149">${(totalAll-pricedAll).toLocaleString()}</div><div style="color:#7d8590;font-size:.8rem">Missing Price</div></div>
+        <div><div style="font-size:1.6rem;font-weight:700;color:#22c55e">${pctAll}%</div><div style="color:#7d8590;font-size:.8rem">Overall Coverage</div></div>
+      </div>
+      <table class="pc-table">
+        <thead><tr>
+          <th>Scraper / Source</th><th>Total</th><th>With Price</th><th>Missing</th>
+          <th>Coverage</th><th>Min SAR</th><th>Avg SAR</th><th>Max SAR</th>
+        </tr></thead><tbody>`;
+    for(const r of rows){
+      const pct = r.pct||0;
+      const fc  = pct>=70 ? '' : (pct<40 ? 'low' : 'mid');
+      html += `<tr>
+        <td><strong>${esc(r.source||'Unknown')}</strong></td>
+        <td>${(r.total||0).toLocaleString()}</td>
+        <td style="color:#22c55e">${(r.with_price||0).toLocaleString()}</td>
+        <td style="color:#f85149">${(r.no_price||0).toLocaleString()}</td>
+        <td>
+          <div style="display:flex;align-items:center;gap:8px">
+            <div class="pc-bar"><div class="pc-fill ${fc}" style="width:${pct}%"></div></div>
+            <span style="min-width:42px;color:${pct>=70?'#22c55e':pct<40?'#f85149':'#f59e0b'}">${pct}%</span>
+          </div>
+        </td>
+        <td style="color:#7d8590">${r.min_price!=null?r.min_price:'—'}</td>
+        <td style="color:#7d8590">${r.avg_price!=null?r.avg_price:'—'}</td>
+        <td style="color:#7d8590">${r.max_price!=null?r.max_price:'—'}</td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  }catch(e){
+    el.textContent = '✗ Failed: '+e.message;
+  }
+}
+
 refresh();
 setInterval(refresh, 3000);
 setInterval(pollScraperStatus, 2000);
@@ -511,6 +695,31 @@ pollScraperStatus();
 </script>
 </body>
 </html>"""
+
+
+def export_db_json():
+    """Export all products as JSON for download."""
+    if not os.path.exists(DB_PATH):
+        return []
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    try:
+        rows = conn.execute("""
+            SELECT p.id, p.external_id, p.sku, p.name, p.price,
+                   p.source_url, p.is_synced, p.last_scraped_at,
+                   p.description, p.specifications,
+                   b.name AS brand,
+                   c.name AS category,
+                   s.name AS source
+            FROM scraper_products p
+            LEFT JOIN scraper_brands b ON p.scraper_brand_id = b.id
+            LEFT JOIN scraper_categories c ON p.scraper_category_id = c.id
+            LEFT JOIN scraper_sources s ON p.source_id = s.id
+            ORDER BY p.id
+        """).fetchall()
+        return [dict(r) for r in rows]
+    finally:
+        conn.close()
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -556,6 +765,33 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
 
+        elif self.path == "/api/price-stats":
+            data = query_price_stats()
+            body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/refetch-status":
+            body = json.dumps({"status": _refetch_status(), "log": _refetch_log[-50:]}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/export":
+            products = export_db_json()
+            body = json.dumps(products, ensure_ascii=False, default=str, indent=2).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Content-Disposition", "attachment; filename=\"products_export.json\"")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
         elif self.path == "/api/data":
             data = query_db()
             body = json.dumps(data, ensure_ascii=False, default=str).encode("utf-8")
@@ -570,7 +806,19 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
 
     def do_POST(self):
-        if self.path.startswith("/api/run-scraper"):
+        if self.path == "/api/run-refetch":
+            status = _refetch_status()
+            if status == "running":
+                body = json.dumps({"status": "already_running"}).encode("utf-8")
+            else:
+                threading.Thread(target=_run_price_refetch, daemon=True).start()
+                body = json.dumps({"status": "started"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path.startswith("/api/run-scraper"):
             from urllib.parse import urlparse, parse_qs
             qs = parse_qs(urlparse(self.path).query)
             name = qs.get("scraper", ["elburoj"])[0]
