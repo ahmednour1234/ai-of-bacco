@@ -190,13 +190,25 @@ def _parse_product_html(html: str, url: str) ->Optional[ dict]:
         ]:
             el = soup.select_one(sel)
             if el:
-                sku = el.get_text(strip=True)
-                if sku:
-                    break
+                candidate = el.get_text(strip=True)
+                if candidate:
+                    # Reject if the element captured a full sentence / product title
+                    # (real SKUs are short codes without long runs of spaces)
+                    if len(candidate) <= 100 and candidate.count(' ') <= 4:
+                        sku = candidate
+                        break
+                    # Try to pull a compact code from the captured text
+                    m = re.search(r'[A-Za-z][A-Za-z0-9/_\-.]{2,79}', candidate)
+                    if m:
+                        sku = m.group(0).strip()
+                        break
         if not sku:
             m = re.search(r'رقم المنتج[:\s]*([A-Za-z0-9\-_]+)', html)
             if m:
                 sku = m.group(1).strip()
+        # Final safety: never store a SKU longer than the column allows
+        if sku and len(sku) > 191:
+            sku = sku[:191]
 
         # ── Price ─────────────────────────────────────────────────────────
         # janoubco: sale items use .price-new, regular items use .price-normal
@@ -406,57 +418,58 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
                 cat_cache[name] = c
             return cat_cache[name]
 
-        for raw in products:
-            name = (raw.get("name") or "").strip()
-            if not name:
-                skipped += 1
-                continue
+        with session.no_autoflush:
+            for raw in products:
+                name = (raw.get("name") or "").strip()
+                if not name:
+                    skipped += 1
+                    continue
 
-            external_id = raw.get("external_id", "")
-            sku         = raw.get("sku") or external_id
-            price       = raw.get("price")
-            source_url  = raw.get("source_url", "")
-            brand_name  = (raw.get("brand") or "Janoubco").strip()
-            cat_name    = (raw.get("category") or "General").strip()
+                external_id = raw.get("external_id", "")
+                sku         = (raw.get("sku") or external_id or "")[:191]
+                price       = raw.get("price")
+                source_url  = raw.get("source_url", "")
+                brand_name  = (raw.get("brand") or "Janoubco").strip()
+                cat_name    = (raw.get("category") or "General").strip()
 
-            category = get_category(cat_name)
-            brand    = get_brand(brand_name)
-            raw_json = json.dumps(raw, ensure_ascii=False, default=str)
+                category = get_category(cat_name)
+                brand    = get_brand(brand_name)
+                raw_json = json.dumps(raw, ensure_ascii=False, default=str)
 
-            existing = None
-            if external_id:
-                existing = session.execute(
-                    select(ScraperProduct).where(
-                        ScraperProduct.source_id == source.id,
-                        ScraperProduct.external_id == external_id,
-                    )
-                ).scalar_one_or_none()
+                existing = None
+                if external_id:
+                    existing = session.execute(
+                        select(ScraperProduct).where(
+                            ScraperProduct.source_id == source.id,
+                            ScraperProduct.external_id == external_id,
+                        )
+                    ).scalar_one_or_none()
 
-            if existing:
-                existing.name                = name
-                existing.sku                 = sku
-                existing.price               = price
-                existing.source_url          = source_url
-                existing.scraper_category_id = category.id
-                existing.scraper_brand_id    = brand.id
-                existing.raw_data            = raw_json
-                existing.last_scraped_at     = datetime.now()
-                updated += 1
-            else:
-                session.add(ScraperProduct(
-                    source_id=source.id,
-                    external_id=external_id,
-                    sku=sku,
-                    name=name,
-                    price=price,
-                    source_url=source_url,
-                    scraper_category_id=category.id,
-                    scraper_brand_id=brand.id,
-                    raw_data=raw_json,
-                    last_scraped_at=datetime.now(),
-                    is_synced=False,
-                ))
-                inserted += 1
+                if existing:
+                    existing.name                = name
+                    existing.sku                 = sku
+                    existing.price               = price
+                    existing.source_url          = source_url
+                    existing.scraper_category_id = category.id
+                    existing.scraper_brand_id    = brand.id
+                    existing.raw_data            = raw_json
+                    existing.last_scraped_at     = datetime.now()
+                    updated += 1
+                else:
+                    session.add(ScraperProduct(
+                        source_id=source.id,
+                        external_id=external_id,
+                        sku=sku,
+                        name=name,
+                        price=price,
+                        source_url=source_url,
+                        scraper_category_id=category.id,
+                        scraper_brand_id=brand.id,
+                        raw_data=raw_json,
+                        last_scraped_at=datetime.now(),
+                        is_synced=False,
+                    ))
+                    inserted += 1
 
         session.commit()
 
