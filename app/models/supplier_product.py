@@ -1,10 +1,11 @@
-"""
+﻿"""
 SupplierProduct Model
 =====================
 Junction table linking a Supplier to a Product, with supplier-specific pricing.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 from datetime import date
@@ -32,10 +33,10 @@ class SupplierProduct(UUIDMixin, TimestampMixin, TenantMixin, Base):
         index=True,
     )
 
-    supplier_sku: Mapped[str | None] = mapped_column(String(128), nullable=True)
-    price: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
+    supplier_sku: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    price: Mapped[Optional[float]] = mapped_column(Numeric(14, 4), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
-    effective_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+    effective_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────

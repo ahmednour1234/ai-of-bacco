@@ -1,4 +1,4 @@
-"""
+﻿"""
 Organization Model
 ==================
 Lightweight tenant container. Every user belongs to an organization.
@@ -6,6 +6,7 @@ All tenant-scoped models carry an org_id FK pointing here.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 
@@ -21,7 +22,7 @@ class Organization(UUIDMixin, TimestampMixin, SoftDeleteMixin, Base):
 
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     slug: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     is_active: Mapped[bool] = mapped_column(default=True, nullable=False)
 
     # ── Relationships ─────────────────────────────────────────────────────────

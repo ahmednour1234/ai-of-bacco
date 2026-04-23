@@ -1,4 +1,4 @@
-"""
+﻿"""
 User Model
 ==========
 Equivalent to Laravel's User model with roles handled via is_superuser flag.

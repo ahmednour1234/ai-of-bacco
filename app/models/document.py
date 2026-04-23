@@ -1,4 +1,4 @@
-"""
+﻿"""
 Document Model
 ==============
 Represents the processed content of an uploaded file.
@@ -6,6 +6,7 @@ Contains the raw extracted text and structured parsed data (JSONB).
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import enum
 import uuid
@@ -58,9 +59,9 @@ class Document(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
 
     # ── Content ───────────────────────────────────────────────────────────────
-    raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
-    parsed_data: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    parsed_data: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     uploaded_file: Mapped["UploadedFile"] = relationship(  # noqa: F821
@@ -69,7 +70,7 @@ class Document(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     extracted_items: Mapped[list["ExtractedItem"]] = relationship(  # noqa: F821
         "ExtractedItem", back_populates="document", lazy="noload"
     )
-    invoice: Mapped["Invoice | None"] = relationship(  # noqa: F821
+    invoice: Mapped[Optional["Invoice"]] = relationship(  # noqa: F821
         "Invoice", back_populates="document", uselist=False, lazy="noload"
     )
     ai_jobs: Mapped[list["AIJob"]] = relationship(  # noqa: F821

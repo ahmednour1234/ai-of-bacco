@@ -1,4 +1,4 @@
-"""
+﻿"""
 UploadedFile Model
 ==================
 Tracks every file uploaded by a user (PDF, image, invoice, supplier sheet).
@@ -6,6 +6,7 @@ The physical file lives in the storage driver (local or S3).
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import enum
 
@@ -57,7 +58,7 @@ class UploadedFile(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base
     owner: Mapped["User"] = relationship(  # noqa: F821
         "User", back_populates="uploaded_files", foreign_keys="UploadedFile.owner_id", lazy="noload"
     )
-    document: Mapped["Document | None"] = relationship(  # noqa: F821
+    document: Mapped[Optional["Document"]] = relationship(  # noqa: F821
         "Document", back_populates="uploaded_file", uselist=False, lazy="noload"
     )
 

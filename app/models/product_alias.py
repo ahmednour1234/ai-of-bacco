@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductAlias Model
 ==================
 Stores alternative names / synonyms for a product.
@@ -11,6 +11,7 @@ To activate embeddings:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 
@@ -37,10 +38,10 @@ class ProductAlias(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── Alias ─────────────────────────────────────────────────────────────────
     alias_text: Mapped[str] = mapped_column(Text, nullable=False, index=True)
-    source: Mapped[str | None] = mapped_column(
+    source: Mapped[Optional[str]] = mapped_column(
         String(128), nullable=True
     )  # e.g. "invoice", "supplier_catalog", "manual"
-    language: Mapped[str | None] = mapped_column(
+    language: Mapped[Optional[str]] = mapped_column(
         String(10), nullable=True, default="en"
     )
 

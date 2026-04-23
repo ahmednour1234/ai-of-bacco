@@ -1,4 +1,4 @@
-"""
+﻿"""
 ExtractionCandidate Model
 =========================
 Represents one predicted row / line from an ExtractionSession.
@@ -15,6 +15,7 @@ Status lifecycle:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 
@@ -46,26 +47,26 @@ class ExtractionCandidate(UUIDMixin, TimestampMixin, Base):
     predicted_label: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
     confidence: Mapped[float] = mapped_column(Float, nullable=False, default=0.0)
 
-    product_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
-    unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    brand: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    category: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    price: Mapped[float | None] = mapped_column(Float, nullable=True)
+    product_name: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    unit: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    brand: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
 
     # True when confidence < threshold or the line is ambiguous
     needs_review: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     # ── Universal pipeline provenance ──────────────────────────────────────────
     # Which document region this candidate came from
-    region_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    region_type: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    page_number: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    region_id: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    region_type: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    page_number: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     # Bounding box: {x0, y0, x1, y1, page} in document coordinates
-    coordinates: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    coordinates: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
     # "llm" | "heuristic"
-    classification_source: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    classification_source: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     # ── Human correction ───────────────────────────────────────────────────────
     # pending | approved | rejected | corrected
@@ -73,15 +74,15 @@ class ExtractionCandidate(UUIDMixin, TimestampMixin, Base):
         String(32), nullable=False, default="pending", index=True
     )
 
-    corrected_label: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    corrected_name: Mapped[str | None] = mapped_column(String(512), nullable=True)
-    corrected_description: Mapped[str | None] = mapped_column(Text, nullable=True)
-    corrected_quantity: Mapped[float | None] = mapped_column(Float, nullable=True)
-    corrected_unit: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    corrected_brand: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    corrected_category: Mapped[str | None] = mapped_column(String(255), nullable=True)
-    corrected_price: Mapped[float | None] = mapped_column(Float, nullable=True)
-    correction_note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    corrected_label: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    corrected_name: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    corrected_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    corrected_quantity: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    corrected_unit: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    corrected_brand: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    corrected_category: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    corrected_price: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    correction_note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Relationship ───────────────────────────────────────────────────────────
     session: Mapped["ExtractionSession"] = relationship(  # noqa: F821

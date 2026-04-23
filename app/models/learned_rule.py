@@ -1,4 +1,4 @@
-"""
+﻿"""
 LearnedRule Model
 =================
 Stores rules that were extracted from user corrections and are applied
@@ -19,6 +19,7 @@ Weight:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 from sqlalchemy import Boolean, Float, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
@@ -48,7 +49,7 @@ class LearnedRule(UUIDMixin, TimestampMixin, Base):
     examples_count: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
 
     # Only used for category_keyword type — the mapped category name
-    category_hint: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    category_hint: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
 
     # Soft-disable without deleting
     is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)

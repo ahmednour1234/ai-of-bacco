@@ -1,4 +1,4 @@
-"""
+﻿"""
 SQLAlchemy Model Mixins (Traits)
 ================================
 Equivalent to Laravel's model traits (HasTimestamps, SoftDeletes, etc.)

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Invoice Model
 =============
 Represents a parsed invoice document with header information.
@@ -6,6 +6,7 @@ Line items are stored in InvoiceItem.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 from datetime import date
@@ -21,13 +22,13 @@ class Invoice(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     __tablename__ = "invoices"
 
     # ── Source ────────────────────────────────────────────────────────────────
-    document_id: Mapped[uuid.UUID | None] = mapped_column(
+    document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
-    supplier_id: Mapped[uuid.UUID | None] = mapped_column(
+    supplier_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("suppliers.id", ondelete="SET NULL"),
         nullable=True,
@@ -35,16 +36,16 @@ class Invoice(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     )
 
     # ── Invoice Header ────────────────────────────────────────────────────────
-    invoice_number: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
-    invoice_date: Mapped[date | None] = mapped_column(Date, nullable=True)
-    total_amount: Mapped[float | None] = mapped_column(Numeric(14, 4), nullable=True)
+    invoice_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
+    invoice_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    total_amount: Mapped[Optional[float]] = mapped_column(Numeric(14, 4), nullable=True)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    document: Mapped["Document | None"] = relationship(  # noqa: F821
+    document: Mapped[Optional["Document"]] = relationship(  # noqa: F821
         "Document", back_populates="invoice", lazy="noload"
     )
-    supplier: Mapped["Supplier | None"] = relationship(  # noqa: F821
+    supplier: Mapped[Optional["Supplier"]] = relationship(  # noqa: F821
         "Supplier", back_populates="invoices", lazy="noload"
     )
     items: Mapped[list["InvoiceItem"]] = relationship(  # noqa: F821

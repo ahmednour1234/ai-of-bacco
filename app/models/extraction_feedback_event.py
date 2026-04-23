@@ -1,4 +1,4 @@
-"""
+﻿"""
 ExtractionFeedbackEvent Model
 ==============================
 Immutable audit log of every human correction applied to an ExtractionCandidate.
@@ -17,6 +17,7 @@ Fields:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import uuid
 from datetime import datetime
@@ -44,7 +45,7 @@ class ExtractionFeedbackEvent(UUIDMixin, Base):
         nullable=False,
         index=True,
     )
-    user_id: Mapped[uuid.UUID | None] = mapped_column(
+    user_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
@@ -56,17 +57,17 @@ class ExtractionFeedbackEvent(UUIDMixin, Base):
     event_type: Mapped[str] = mapped_column(String(32), nullable=False, index=True)
 
     # Text note from the reviewer (optional)
-    note: Mapped[str | None] = mapped_column(Text, nullable=True)
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Change payload ─────────────────────────────────────────────────────────
     # ["product_name", "quantity", "unit", …]
-    changed_fields: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    changed_fields: Mapped[Optional[list]] = mapped_column(JSON, nullable=True)
 
     # Snapshot of the candidate values BEFORE the correction was applied
-    old_values: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    old_values: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # Snapshot of the new / corrected values
-    new_values: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    new_values: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     # ── Timestamp ─────────────────────────────────────────────────────────────
     # Separate from UUIDMixin (no TimestampMixin — immutable rows, created_at only)

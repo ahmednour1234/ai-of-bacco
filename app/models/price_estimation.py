@@ -1,4 +1,4 @@
-"""
+﻿"""
 PriceEstimation Model
 =====================
 Stores AI-generated price estimations for a product.
@@ -6,6 +6,7 @@ Sources: historical_invoice, supplier_catalog, web_scrape, manual.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import enum
 import uuid
@@ -40,7 +41,7 @@ class PriceEstimation(UUIDMixin, TimestampMixin, TenantMixin, Base):
     # ── Estimation ────────────────────────────────────────────────────────────
     estimated_price: Mapped[float] = mapped_column(Numeric(14, 4), nullable=False)
     currency: Mapped[str] = mapped_column(String(3), nullable=False, default="USD")
-    confidence: Mapped[float | None] = mapped_column(Float, nullable=True)  # 0.0 – 1.0
+    confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 0.0 – 1.0
 
     source_type: Mapped[PriceSourceType] = mapped_column(
         Enum(PriceSourceType, name="price_source_type_enum"),
@@ -49,11 +50,11 @@ class PriceEstimation(UUIDMixin, TimestampMixin, TenantMixin, Base):
         index=True,
     )
 
-    valid_from: Mapped[date | None] = mapped_column(Date, nullable=True)
-    valid_to: Mapped[date | None] = mapped_column(Date, nullable=True)
+    valid_from: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
+    valid_to: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
 
     # ── Extra Context ─────────────────────────────────────────────────────────
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     product: Mapped["Product"] = relationship(  # noqa: F821

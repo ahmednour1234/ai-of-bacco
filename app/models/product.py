@@ -1,4 +1,4 @@
-"""
+﻿"""
 Product Model
 =============
 Central entity. Represents a normalized, deduplicated product record.
@@ -6,6 +6,7 @@ Equivalent to a Laravel Eloquent Product model.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 from sqlalchemy import JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -20,17 +21,17 @@ class Product(UUIDMixin, TimestampMixin, SoftDeleteMixin, TenantMixin, Base):
     # ── Identity ──────────────────────────────────────────────────────────────
     name: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
     slug: Mapped[str] = mapped_column(String(512), nullable=False, index=True)
-    sku: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    sku: Mapped[Optional[str]] = mapped_column(String(128), nullable=True, index=True)
 
     # ── Classification ────────────────────────────────────────────────────────
-    category: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
-    unit: Mapped[str | None] = mapped_column(String(64), nullable=True)  # e.g. "kg", "pcs", "box"
-    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(255), nullable=True, index=True)
+    unit: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)  # e.g. "kg", "pcs", "box"
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Flexible Metadata ─────────────────────────────────────────────────────
     # Store extra structured data (brand, dimensions, etc.) without schema changes.
     # Equivalent to Laravel JSON cast: protected $casts = ['metadata' => 'array']
-    extra_metadata: Mapped[dict | None] = mapped_column("metadata", JSON, nullable=True, default=dict)
+    extra_metadata: Mapped[Optional[dict]] = mapped_column("metadata", JSON, nullable=True, default=dict)
 
     # ── Relationships ─────────────────────────────────────────────────────────
     aliases: Mapped[list["ProductAlias"]] = relationship(  # noqa: F821

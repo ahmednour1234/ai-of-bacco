@@ -1,4 +1,4 @@
-"""
+﻿"""
 AIJob Model
 ===========
 Tracks background AI processing jobs (OCR, extraction, estimation, embedding).
@@ -6,6 +6,7 @@ Equivalent to a job record in a database-driven queue table.
 """
 
 from __future__ import annotations
+from typing import Optional
 
 import enum
 import uuid
@@ -53,7 +54,7 @@ class AIJob(UUIDMixin, TimestampMixin, TenantMixin, Base):
     )
 
     # ── Context ───────────────────────────────────────────────────────────────
-    document_id: Mapped[uuid.UUID | None] = mapped_column(
+    document_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         Uuid(as_uuid=True),
         ForeignKey("documents.id", ondelete="SET NULL"),
         nullable=True,
@@ -61,16 +62,16 @@ class AIJob(UUIDMixin, TimestampMixin, TenantMixin, Base):
     )
 
     # ── Payload & Result ──────────────────────────────────────────────────────
-    payload: Mapped[dict | None] = mapped_column(JSON, nullable=True, default=dict)
-    result: Mapped[dict | None] = mapped_column(JSON, nullable=True)
-    error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True, default=dict)
+    result: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    error_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Timing ────────────────────────────────────────────────────────────────
-    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
-    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    started_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
 
     # ── Relationships ─────────────────────────────────────────────────────────
-    document: Mapped["Document | None"] = relationship(  # noqa: F821
+    document: Mapped[Optional["Document"]] = relationship(  # noqa: F821
         "Document", back_populates="ai_jobs", lazy="noload"
     )
 

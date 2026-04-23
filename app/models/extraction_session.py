@@ -1,4 +1,4 @@
-"""
+﻿"""
 ExtractionSession Model
 =======================
 Tracks a single file-upload extraction job.
@@ -11,6 +11,7 @@ produced by the extraction pipeline.  The status field drives the review UI:
 """
 
 from __future__ import annotations
+from typing import Optional
 
 from sqlalchemy import Boolean, Float, Integer, JSON, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -36,14 +37,14 @@ class ExtractionSession(UUIDMixin, TimestampMixin, Base):
     rejected_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     # Raw extracted text stored for debugging / re-run
-    raw_text: Mapped[str | None] = mapped_column(Text, nullable=True)
+    raw_text: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     # ── Universal pipeline detection results ──────────────────────────────────
-    contains_products: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
-    document_type_guess: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    detection_confidence: Mapped[float | None] = mapped_column(Float, nullable=True)
+    contains_products: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
+    document_type_guess: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    detection_confidence: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
     # Stores raw LLM responses / heuristic scores for auditability + fine-tuning
-    detection_metadata: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    detection_metadata: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
 
     candidates: Mapped[list["ExtractionCandidate"]] = relationship(  # noqa: F821
         "ExtractionCandidate",

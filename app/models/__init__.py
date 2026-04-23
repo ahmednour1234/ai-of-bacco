@@ -1,4 +1,4 @@
-"""
+﻿"""
 Models package
 ==============
 Import all models here so Alembic's env.py discovers them
