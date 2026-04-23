@@ -20,24 +20,24 @@ def upgrade() -> None:
         "extraction_feedback_events",
         sa.Column(
             "id",
-            sa.Uuid(as_uuid=True),
+            sa.UUID(),
             primary_key=True,
         ),
         sa.Column(
             "candidate_id",
-            sa.Uuid(as_uuid=True),
+            sa.UUID(),
             sa.ForeignKey("extraction_candidates.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "session_id",
-            sa.Uuid(as_uuid=True),
+            sa.UUID(),
             sa.ForeignKey("extraction_sessions.id", ondelete="CASCADE"),
             nullable=False,
         ),
         sa.Column(
             "user_id",
-            sa.Uuid(as_uuid=True),
+            sa.UUID(),
             sa.ForeignKey("users.id", ondelete="SET NULL"),
             nullable=True,
         ),
