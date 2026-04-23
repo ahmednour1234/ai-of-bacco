@@ -126,7 +126,7 @@ async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
 
     # Fallback: probe the known pattern URLs if index was blocked or empty
     if not product_sitemaps:
-        async def probe_sitemap(url: str) -> str | None:
+        async def probe_sitemap(url: str) -> Optional[str]:
             try:
                 resp = await client.get(url, headers=HEADERS, timeout=15)
                 if resp.status_code == 200:
@@ -333,16 +333,25 @@ def _parse_product_html(html: str, url: str) ->Optional[ dict]:
 
 # ─── STEP 3: fetch product page ───────────────────────────────────────────────
 
-async def fetch_product(client: httpx.AsyncClient, url: str) ->Optional[ dict]:
-    """Fetch a single product page with httpx and parse it."""
+async def fetch_product(url: str) -> Optional[dict]:
+    """Fetch a single product page using a per-request rotated proxy."""
     async with _SEM:
         await asyncio.sleep(random.uniform(0.3, 1.5))
+        proxy_url = next_httpx_proxy()
+        client_kwargs: dict = {
+            "timeout": 20,
+            "follow_redirects": True,
+            "headers": HEADERS,
+        }
+        if proxy_url:
+            client_kwargs["proxy"] = proxy_url
         try:
-            r = await client.get(url, headers=HEADERS, timeout=20)
-            if r.status_code == 404:
-                return None
-            r.raise_for_status()
-            return _parse_product_html(r.text, url)
+            async with httpx.AsyncClient(**client_kwargs) as c:
+                r = await c.get(url, headers=HEADERS, timeout=20)
+                if r.status_code == 404:
+                    return None
+                r.raise_for_status()
+                return _parse_product_html(r.text, url)
         except Exception as e:
             print(f"  [fetch error] {url[-60:]}: {e}")
             return None
@@ -582,7 +591,7 @@ async def main():
 
         async def process(url: str):
             nonlocal done
-            result = await fetch_product(client, url)
+            result = await fetch_product(url)
             done += 1
             return result
 
