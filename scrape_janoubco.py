@@ -53,12 +53,32 @@ SOURCE_NAME = "Janoubco"
 # Sitemap index: 11 product sitemaps + category + brand
 SITEMAP_INDEX = "https://janoubco.com/sitemap.xml"
 
+# Rotate User-Agents to reduce fingerprinting
+_USER_AGENTS = [
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:125.0) Gecko/20100101 Firefox/125.0",
+    "Mozilla/5.0 (Macintosh; Intel Mac OS X 14_4_1) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.4.1 Safari/605.1.15",
+]
+_ua_idx = 0
+_ua_lock = __import__('threading').Lock()
+
+
+def _next_ua() -> str:
+    global _ua_idx
+    with _ua_lock:
+        ua = _USER_AGENTS[_ua_idx % len(_USER_AGENTS)]
+        _ua_idx += 1
+    return ua
+
+
+def _build_headers() -> dict:
+    return {**HEADERS, "User-Agent": _next_ua()}
+
+
 HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/124.0.0.0 Safari/537.36"
-    ),
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
     "Accept-Language": "ar,en-US;q=0.9,en;q=0.8",
     "Accept-Encoding": "gzip, deflate, br",
@@ -105,24 +125,35 @@ def _slug_from_url(url: str) -> str:
 
 # ─── STEP 1: parse sitemaps ────────────────────────────────────────────────────
 
-def _make_client(timeout: int = 20) -> httpx.AsyncClient:
-    """Create a fresh httpx client with the next rotating proxy."""
-    proxy_url = next_httpx_proxy()
-    kwargs: dict = {"timeout": timeout, "follow_redirects": True, "headers": HEADERS}
+def _make_client(timeout: int = 20, force_direct: bool = False) -> httpx.AsyncClient:
+    """Create a fresh httpx client, optionally with a rotating proxy."""
+    proxy_url = None if force_direct else next_httpx_proxy()
+    kwargs: dict = {"timeout": timeout, "follow_redirects": True}
     if proxy_url:
         kwargs["proxy"] = proxy_url
     return httpx.AsyncClient(**kwargs)
 
 
 async def _get_url(url: str, timeout: int = 20) -> Optional[httpx.Response]:
-    """GET a URL using a fresh rotating-proxy client. Returns response or None on error."""
-    async with _make_client(timeout) as c:
+    """GET a URL. Tries proxy first; if proxy fails/times out, retries direct."""
+    headers = _build_headers()
+    # Try with proxy
+    proxy_url = next_httpx_proxy()
+    if proxy_url:
         try:
-            r = await c.get(url, headers=HEADERS, timeout=timeout)
-            return r
-        except Exception as e:
-            print(f"  [request error] {url[-70:]}: {e}")
-            return None
+            async with httpx.AsyncClient(
+                proxy=proxy_url, timeout=timeout, follow_redirects=True
+            ) as c:
+                return await c.get(url, headers=headers)
+        except Exception:
+            pass  # proxy dead — fall through to direct
+    # Direct connection (no proxy)
+    try:
+        async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as c:
+            return await c.get(url, headers=_build_headers())
+    except Exception as e:
+        print(f"  [request error] {url[-70:]}: {e}")
+        return None
 
 
 async def fetch_all_product_urls() -> list[str]:
@@ -144,15 +175,12 @@ async def fetch_all_product_urls() -> list[str]:
         status = r.status_code if r is not None else "no response"
         print(f"  [sitemap index error] status={status} — falling back to known pattern...")
 
-    # Fallback: probe known pattern URLs, each with its own rotated proxy
+    # Fallback: probe known pattern URLs — proxy first, direct if needed
     if not product_sitemaps:
         async def probe_sitemap(url: str) -> Optional[str]:
             resp = await _get_url(url, timeout=15)
             if resp is not None and resp.status_code == 200:
-                print(f"    [probe ok] {url}")
                 return url
-            status = resp.status_code if resp is not None else "timeout/error"
-            print(f"    [probe fail] {url} → {status}")
             return None
 
         probe_results = await asyncio.gather(*[probe_sitemap(u) for u in _PRODUCT_SITEMAP_PATTERN])
@@ -356,27 +384,17 @@ def _parse_product_html(html: str, url: str) ->Optional[ dict]:
 # ─── STEP 3: fetch product page ───────────────────────────────────────────────
 
 async def fetch_product(url: str) -> Optional[dict]:
-    """Fetch a single product page using a per-request rotated proxy."""
+    """Fetch a single product page — proxy first, direct fallback."""
     async with _SEM:
-        await asyncio.sleep(random.uniform(0.3, 1.5))
-        proxy_url = next_httpx_proxy()
-        client_kwargs: dict = {
-            "timeout": 20,
-            "follow_redirects": True,
-            "headers": HEADERS,
-        }
-        if proxy_url:
-            client_kwargs["proxy"] = proxy_url
-        try:
-            async with httpx.AsyncClient(**client_kwargs) as c:
-                r = await c.get(url, headers=HEADERS, timeout=20)
-                if r.status_code == 404:
-                    return None
-                r.raise_for_status()
-                return _parse_product_html(r.text, url)
-        except Exception as e:
-            print(f"  [fetch error] {url[-60:]}: {e}")
+        await asyncio.sleep(random.uniform(0.2, 0.8))
+        r = await _get_url(url, timeout=20)
+        if r is None:
             return None
+        if r.status_code == 404:
+            return None
+        if r.status_code != 200:
+            return None
+        return _parse_product_html(r.text, url)
 
 
 # ─── STEP 4: save batch to SQLite ────────────────────────────────────────────
