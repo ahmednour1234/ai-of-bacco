@@ -16,6 +16,7 @@ from scraper.models.base import ScraperTimestampMixin
 
 class ScraperSource(ScraperTimestampMixin, ScraperBase):
     __tablename__ = "scraper_sources"
+    __table_args__ = {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     name: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)

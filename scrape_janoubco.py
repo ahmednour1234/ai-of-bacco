@@ -325,6 +325,8 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
     from sqlalchemy.orm import Session
 
     db_url = os.environ.get("SCRAPER_DATABASE_URL_SYNC", f"sqlite:///{_DB_FILE}")
+    if "mysql" in db_url and "charset=" not in db_url:
+        db_url += ("&" if "?" in db_url else "?") + "charset=utf8mb4"
     engine = create_engine(db_url, echo=False)
     ScraperBase.metadata.create_all(engine)
 

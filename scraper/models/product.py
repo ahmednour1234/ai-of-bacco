@@ -32,6 +32,7 @@ class ScraperProduct(ScraperTimestampMixin, ScraperBase):
         Index("ix_scraper_products_source_external_id", "source_id", "external_id"),
         Index("ix_scraper_products_source_url", "source_id", "source_url"),
         Index("ix_scraper_products_source_sku", "source_id", "sku"),
+        {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"},
     )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)

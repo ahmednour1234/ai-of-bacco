@@ -21,6 +21,7 @@ from scraper.models.base import ScraperTimestampMixin
 
 class ScraperSyncLog(ScraperTimestampMixin, ScraperBase):
     __tablename__ = "scraper_sync_logs"
+    __table_args__ = {"mysql_charset": "utf8mb4", "mysql_collate": "utf8mb4_unicode_ci"}
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     scraper_product_id: Mapped[int] = mapped_column(

@@ -37,7 +37,11 @@ settings = get_settings()
 
 # Override the placeholder URL in scraper/alembic.ini with the real value
 # from .env so credentials are never committed to the repository.
-config.set_main_option("sqlalchemy.url", settings.SCRAPER_DATABASE_URL_SYNC)
+_scraper_url = settings.SCRAPER_DATABASE_URL_SYNC
+# Ensure utf8mb4 charset for MySQL connections (prevents Arabic collation errors)
+if "mysql" in _scraper_url and "charset=" not in _scraper_url:
+    _scraper_url += ("&" if "?" in _scraper_url else "?") + "charset=utf8mb4"
+config.set_main_option("sqlalchemy.url", _scraper_url)
 
 
 # ── Offline migrations ─────────────────────────────────────────────────────────
