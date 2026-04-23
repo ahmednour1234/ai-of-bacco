@@ -59,9 +59,22 @@ HEADERS = {
         "AppleWebKit/537.36 (KHTML, like Gecko) "
         "Chrome/124.0.0.0 Safari/537.36"
     ),
-    "Accept-Language": "ar,en;q=0.5",
-    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+    "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+    "Accept-Language": "ar,en-US;q=0.9,en;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Connection": "keep-alive",
+    "Upgrade-Insecure-Requests": "1",
+    "Sec-Fetch-Dest": "document",
+    "Sec-Fetch-Mode": "navigate",
+    "Sec-Fetch-Site": "none",
+    "Sec-Fetch-User": "?1",
+    "Cache-Control": "max-age=0",
 }
+
+# Known product sitemap pattern — used as fallback when sitemap index is blocked
+_PRODUCT_SITEMAP_PATTERN = [
+    f"{BASE_URL}/sitemap-product-{i}.xml" for i in range(1, 15)
+]
 
 # Concurrency: how many product pages to fetch simultaneously
 CONCURRENCY = 12
@@ -95,24 +108,34 @@ def _slug_from_url(url: str) -> str:
 async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
     """Fetch the sitemap index, then all product sub-sitemaps. Returns list of product URLs."""
     # Get index
+    product_sitemaps = []
     try:
         r = await client.get(SITEMAP_INDEX, headers=HEADERS, timeout=20)
         r.raise_for_status()
+        try:
+            root = ET.fromstring(r.text)
+            ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+            for loc in root.findall(".//sm:loc", ns):
+                if loc.text and "sitemap-product" in loc.text:
+                    product_sitemaps.append(loc.text.strip())
+        except ET.ParseError:
+            product_sitemaps = re.findall(r'https://janoubco\.com/sitemap-product-\d+\.xml', r.text)
     except Exception as e:
-        print(f"  [sitemap error] {e}")
-        return []
+        print(f"  [sitemap index error] {e}")
+        print("  Falling back to known sitemap URL pattern...")
 
-    # Find product sitemap URLs from index
-    product_sitemaps = []
-    try:
-        root = ET.fromstring(r.text)
-        ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
-        for loc in root.findall(".//sm:loc", ns):
-            if loc.text and "sitemap-product" in loc.text:
-                product_sitemaps.append(loc.text.strip())
-    except ET.ParseError:
-        # fallback: regex
-        product_sitemaps = re.findall(r'https://janoubco\.com/sitemap-product-\d+\.xml', r.text)
+    # Fallback: probe the known pattern URLs if index was blocked or empty
+    if not product_sitemaps:
+        async def probe_sitemap(url: str) -> str | None:
+            try:
+                resp = await client.get(url, headers=HEADERS, timeout=15)
+                if resp.status_code == 200:
+                    return url
+            except Exception:
+                pass
+            return None
+        probe_results = await asyncio.gather(*[probe_sitemap(u) for u in _PRODUCT_SITEMAP_PATTERN])
+        product_sitemaps = [u for u in probe_results if u]
 
     print(f"  Found {len(product_sitemaps)} product sitemap files")
 
