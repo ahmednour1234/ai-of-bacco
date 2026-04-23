@@ -264,15 +264,17 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
         db_url += ("&" if "?" in db_url else "?") + "charset=utf8mb4"
     engine = create_engine(db_url, echo=False)
     ScraperBase.metadata.create_all(engine)
-    if "mysql" in db_url:
-        _scraper_tables = ["scraper_sources", "scraper_categories", "scraper_brands",
-                           "scraper_products", "scraper_sync_logs"]
-        with engine.begin() as _c:
-            for _t in _scraper_tables:
-                try:
-                    _c.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-                except Exception:
-                    pass
+    global _CHARSET_FIXED
+    if "mysql" in db_url and not _CHARSET_FIXED:
+        for _t in ["scraper_sources", "scraper_categories", "scraper_brands",
+                   "scraper_products", "scraper_sync_logs"]:
+            try:
+                with engine.connect() as _conn:
+                    _conn.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    _conn.commit()
+            except Exception:
+                pass
+        _CHARSET_FIXED = True
 
     inserted = updated = skipped = 0
 

@@ -215,15 +215,17 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
         echo=False,
     )
     ScraperBase.metadata.create_all(engine)
-    if "mysql" in db_url:
-        _scraper_tables = ["scraper_sources", "scraper_categories", "scraper_brands",
-                           "scraper_products", "scraper_sync_logs"]
-        with engine.begin() as _c:
-            for _t in _scraper_tables:
-                try:
-                    _c.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
-                except Exception:
-                    pass
+    global _CHARSET_FIXED
+    if "mysql" in db_url and not _CHARSET_FIXED:
+        for _t in ["scraper_sources", "scraper_categories", "scraper_brands",
+                   "scraper_products", "scraper_sync_logs"]:
+            try:
+                with engine.connect() as _conn:
+                    _conn.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                    _conn.commit()
+            except Exception:
+                pass
+        _CHARSET_FIXED = True
 
     inserted = updated = skipped = 0
 
@@ -242,22 +244,6 @@ def save_to_sqlite(all_products: list[dict]) -> tuple[int, int, int]:
         cat_cache: dict[str, ScraperCategory] = {}
 
         def get_brand(name: str) -> ScraperBrand:
-            if name not in brand_cache:
-                b = session.execute(
-                    select(ScraperBrand).where(
-                        ScraperBrand.source_id == source.id,
-                        ScraperBrand.name == name,
-                    )
-                ).scalar_one_or_none()
-                if not b:
-                    b = ScraperBrand(source_id=source.id, name=name)
-                    session.add(b)
-                    session.flush()
-                brand_cache[name] = b
-            return brand_cache[name]
-
-        def get_category(name: str, slug: str, url: str) -> ScraperCategory:
-            if name not in cat_cache:
                 c = session.execute(
                     select(ScraperCategory).where(
                         ScraperCategory.source_id == source.id,
