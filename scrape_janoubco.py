@@ -321,7 +321,7 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
     from scraper.models.brand import ScraperBrand
     from scraper.models.product import ScraperProduct
     from scraper.core.database import ScraperBase
-    from sqlalchemy import create_engine, select
+    from sqlalchemy import create_engine, select, text
     from sqlalchemy.orm import Session
 
     db_url = os.environ.get("SCRAPER_DATABASE_URL_SYNC", f"sqlite:///{_DB_FILE}")
@@ -329,6 +329,15 @@ def save_to_sqlite(products: list[dict]) -> tuple[int, int, int]:
         db_url += ("&" if "?" in db_url else "?") + "charset=utf8mb4"
     engine = create_engine(db_url, echo=False)
     ScraperBase.metadata.create_all(engine)
+    if "mysql" in db_url:
+        _scraper_tables = ["scraper_sources", "scraper_categories", "scraper_brands",
+                           "scraper_products", "scraper_sync_logs"]
+        with engine.begin() as _c:
+            for _t in _scraper_tables:
+                try:
+                    _c.execute(text(f"ALTER TABLE `{_t}` CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"))
+                except Exception:
+                    pass
 
     inserted = updated = skipped = 0
 
