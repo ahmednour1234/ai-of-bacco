@@ -1,4 +1,4 @@
-"""
+﻿"""
 User Schemas
 ============
 """
@@ -17,12 +17,12 @@ class UserCreateSchema(BaseSchema):
     name: str = Field(..., min_length=1, max_length=255)
     email: EmailStr
     password: str = Field(..., min_length=8)
-    org_id: uuid.UUID | None = None
+    org_id: Optional[uuid.UUID] = None
 
 
 class UserUpdateSchema(BaseSchema):
-    name: str | None = Field(default=None, min_length=1, max_length=255)
-    email: EmailStr | None = None
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    email: Optional[EmailStr] = None
 
 
 class UserResponseSchema(BaseResponseSchema):

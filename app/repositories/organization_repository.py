@@ -1,4 +1,4 @@
-"""
+﻿"""
 OrganizationRepository
 ======================
 """
@@ -17,7 +17,7 @@ class OrganizationRepository(BaseRepository[Organization, OrganizationCreateSche
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, Organization)
 
-    async def get_by_slug(self, slug: str) -> Organization | None:
+    async def get_by_slug(self, slug: str) -> Optional[Organization]:
         stmt = (
             select(Organization)
             .where(Organization.slug == slug, Organization.deleted_at.is_(None))

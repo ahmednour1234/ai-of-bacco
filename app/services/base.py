@@ -1,4 +1,4 @@
-"""
+﻿"""
 BaseService
 ===========
 Generic business logic base class.
@@ -14,7 +14,7 @@ Type parameter:
 from __future__ import annotations
 
 import uuid
-from typing import Any, Generic, TypeVar
+from typing import Optional, Any, Generic, TypeVar
 
 from app.core.exceptions import NotFoundException
 from app.repositories.base import BaseRepository
@@ -34,7 +34,7 @@ class BaseService(Generic[RepositoryType]):
     async def get_by_id_or_fail(
         self,
         record_id: uuid.UUID | str,
-        org_id: uuid.UUID | None = None,
+        org_id: Optional[uuid.UUID] = None,
         resource_name: str = "Resource",
     ):
         """
@@ -50,8 +50,8 @@ class BaseService(Generic[RepositoryType]):
         self,
         page: int = 1,
         per_page: int = 15,
-        org_id: uuid.UUID | None = None,
-        filters: dict[str, Any] | None = None,
+        org_id: Optional[uuid.UUID] = None,
+        filters: Optional[dict[str, Any]] = None,
     ) -> tuple[list, int]:
         """Paginate records. Returns (items, total)."""
         return await self.repo.paginate(
@@ -64,7 +64,7 @@ class BaseService(Generic[RepositoryType]):
     async def soft_delete_or_fail(
         self,
         record_id: uuid.UUID | str,
-        org_id: uuid.UUID | None = None,
+        org_id: Optional[uuid.UUID] = None,
         resource_name: str = "Resource",
     ) -> None:
         """Find and soft-delete a record, raising NotFoundException if missing."""

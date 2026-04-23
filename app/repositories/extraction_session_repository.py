@@ -1,4 +1,4 @@
-"""
+﻿"""
 ExtractionSessionRepository
 ============================
 Data-access layer for ExtractionSession.
@@ -24,7 +24,7 @@ class ExtractionSessionRepository(
 
     async def get_with_candidates(
         self, session_id: uuid.UUID
-    ) -> ExtractionSession | None:
+    ) -> Optional[ExtractionSession]:
         """Load session with all candidate rows eagerly."""
         stmt = (
             select(ExtractionSession)
@@ -38,11 +38,11 @@ class ExtractionSessionRepository(
         self,
         filename: str,
         file_type: str,
-        raw_text: str | None = None,
-        contains_products: bool | None = None,
-        document_type_guess: str | None = None,
-        detection_confidence: float | None = None,
-        detection_metadata: dict | None = None,
+        raw_text: Optional[str] = None,
+        contains_products: Optional[bool] = None,
+        document_type_guess: Optional[str] = None,
+        detection_confidence: Optional[float] = None,
+        detection_metadata: Optional[dict] = None,
     ) -> ExtractionSession:
         session = ExtractionSession(
             filename=filename,
@@ -70,7 +70,7 @@ class ExtractionSessionRepository(
         reviewed: int,
         approved: int,
         rejected: int,
-        status: str | None = None,
+        status: Optional[str] = None,
     ) -> ExtractionSession:
         session.total_candidates = total
         session.reviewed_count = reviewed

@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/api/v1/price_estimations.py
 ---------------------------------
 Price estimation CRUD endpoints.
@@ -24,7 +24,7 @@ async def list_estimations(
     current_user: CurrentUserDep,
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
-    product_id: uuid.UUID | None = Query(None, description="Filter by product"),
+    product_id: Optional[uuid.UUID] = Query(None, description="Filter by product"),
 ):
     service = PriceEstimationService(db)
     if product_id:

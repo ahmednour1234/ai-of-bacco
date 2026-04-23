@@ -1,4 +1,4 @@
-"""
+﻿"""
 Product Schemas
 ===============
 Equivalent to Laravel Form Requests (input) + API Resources (output).
@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Optional, Any
 
 from pydantic import Field, field_validator, AliasChoices
 
@@ -29,11 +29,11 @@ class ProductCreateSchema(BaseSchema):
     Equivalent to Laravel's StoreProductRequest.
     """
     name: str = Field(..., min_length=1, max_length=512, examples=["Stainless Steel Bolt M8"])
-    sku: str | None = Field(default=None, max_length=128, examples=["BOLT-M8-SS"])
-    category: str | None = Field(default=None, max_length=255, examples=["Fasteners"])
-    unit: str | None = Field(default=None, max_length=64, examples=["pcs"])
-    description: str | None = Field(default=None)
-    metadata: dict[str, Any] | None = Field(default=None)
+    sku: Optional[str] = Field(default=None, max_length=128, examples=["BOLT-M8-SS"])
+    category: Optional[str] = Field(default=None, max_length=255, examples=["Fasteners"])
+    unit: Optional[str] = Field(default=None, max_length=64, examples=["pcs"])
+    description: Optional[str] = Field(default=None)
+    metadata: Optional[dict[str, Any]] = Field(default=None)
 
     @field_validator("name")
     @classmethod
@@ -48,12 +48,12 @@ class ProductUpdateSchema(BaseSchema):
     Validated input for updating a product (all fields optional — PATCH semantics).
     Equivalent to Laravel's UpdateProductRequest.
     """
-    name: str | None = Field(default=None, min_length=1, max_length=512)
-    sku: str | None = Field(default=None, max_length=128)
-    category: str | None = Field(default=None, max_length=255)
-    unit: str | None = Field(default=None, max_length=64)
-    description: str | None = Field(default=None)
-    metadata: dict[str, Any] | None = Field(default=None)
+    name: Optional[str] = Field(default=None, min_length=1, max_length=512)
+    sku: Optional[str] = Field(default=None, max_length=128)
+    category: Optional[str] = Field(default=None, max_length=255)
+    unit: Optional[str] = Field(default=None, max_length=64)
+    description: Optional[str] = Field(default=None)
+    metadata: Optional[dict[str, Any]] = Field(default=None)
 
 
 # ── Output Schemas (API Resources) ────────────────────────────────────────────
@@ -66,11 +66,11 @@ class ProductResponseSchema(BaseResponseSchema):
     id: uuid.UUID
     name: str
     slug: str
-    sku: str | None
-    category: str | None
-    unit: str | None
-    description: str | None
-    metadata: dict[str, Any] | None = Field(default=None, validation_alias=AliasChoices('extra_metadata', 'metadata'))
+    sku: Optional[str]
+    category: Optional[str]
+    unit: Optional[str]
+    description: Optional[str]
+    metadata: Optional[dict[str, Any]] = Field(default=None, validation_alias=AliasChoices('extra_metadata', 'metadata'))
     org_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
@@ -84,7 +84,7 @@ class ProductListItemSchema(BaseResponseSchema):
     id: uuid.UUID
     name: str
     slug: str
-    sku: str | None
-    category: str | None
-    unit: str | None
+    sku: Optional[str]
+    category: Optional[str]
+    unit: Optional[str]
     created_at: datetime

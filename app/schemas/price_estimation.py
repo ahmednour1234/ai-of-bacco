@@ -1,4 +1,4 @@
-"""
+﻿"""
 PriceEstimation Schemas
 =======================
 """
@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import date, datetime
-from typing import Any
+from typing import Optional, Any
 
 from pydantic import Field, AliasChoices
 
@@ -19,21 +19,21 @@ class PriceEstimationCreateSchema(BaseSchema):
     product_id: uuid.UUID
     estimated_price: float = Field(..., gt=0)
     currency: str = Field(default="USD", max_length=3)
-    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
     source_type: PriceSourceType = PriceSourceType.AI_ESTIMATED
-    valid_from: date | None = None
-    valid_to: date | None = None
-    metadata: dict[str, Any] | None = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class PriceEstimationUpdateSchema(BaseSchema):
-    estimated_price: float | None = Field(default=None, gt=0)
-    currency: str | None = Field(default=None, max_length=3)
-    confidence: float | None = Field(default=None, ge=0.0, le=1.0)
-    source_type: PriceSourceType | None = None
-    valid_from: date | None = None
-    valid_to: date | None = None
-    metadata: dict[str, Any] | None = None
+    estimated_price: Optional[float] = Field(default=None, gt=0)
+    currency: Optional[str] = Field(default=None, max_length=3)
+    confidence: Optional[float] = Field(default=None, ge=0.0, le=1.0)
+    source_type: Optional[PriceSourceType] = None
+    valid_from: Optional[date] = None
+    valid_to: Optional[date] = None
+    metadata: Optional[dict[str, Any]] = None
 
 
 class PriceEstimationResponseSchema(BaseResponseSchema):
@@ -41,11 +41,11 @@ class PriceEstimationResponseSchema(BaseResponseSchema):
     product_id: uuid.UUID
     estimated_price: float
     currency: str
-    confidence: float | None
+    confidence: Optional[float]
     source_type: PriceSourceType
-    valid_from: date | None
-    valid_to: date | None
-    metadata: dict[str, Any] | None = Field(default=None, validation_alias=AliasChoices('extra_metadata', 'metadata'))
+    valid_from: Optional[date]
+    valid_to: Optional[date]
+    metadata: Optional[dict[str, Any]] = Field(default=None, validation_alias=AliasChoices('extra_metadata', 'metadata'))
     org_id: uuid.UUID
     created_at: datetime
     updated_at: datetime
@@ -57,6 +57,6 @@ class PriceEstimationListItemSchema(BaseResponseSchema):
     estimated_price: float
     currency: str
     source_type: PriceSourceType
-    confidence: float | None
-    valid_from: date | None
+    confidence: Optional[float]
+    valid_from: Optional[date]
     created_at: datetime

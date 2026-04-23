@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductRepository
 =================
 Data access layer for products.
@@ -25,7 +25,7 @@ class ProductRepository(BaseRepository[Product, ProductCreateSchema, ProductUpda
 
     async def get_by_slug(
         self, slug: str, org_id: uuid.UUID
-    ) -> Product | None:
+    ) -> Optional[Product]:
         """Find a product by its generated slug within a tenant."""
         stmt = (
             select(Product)
@@ -37,7 +37,7 @@ class ProductRepository(BaseRepository[Product, ProductCreateSchema, ProductUpda
 
     async def get_by_sku(
         self, sku: str, org_id: uuid.UUID
-    ) -> Product | None:
+    ) -> Optional[Product]:
         """Find a product by SKU within a tenant."""
         stmt = (
             select(Product)
@@ -69,7 +69,7 @@ class ProductRepository(BaseRepository[Product, ProductCreateSchema, ProductUpda
 
     async def get_with_aliases(
         self, product_id: uuid.UUID, org_id: uuid.UUID
-    ) -> Product | None:
+    ) -> Optional[Product]:
         """Eager-load product aliases in a single query."""
         stmt = (
             select(Product)

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Schemas for product extraction API responses.
 """
 
@@ -9,12 +9,12 @@ from app.schemas.base import BaseResponseSchema
 
 class ProductExtractedItemSchema(BaseResponseSchema):
     product_name: str
-    category: str | None = None
-    brand: str | None = None
-    quantity: float | None = None
-    unit: str | None = None
-    description: str | None = None
-    source_line: str | None = None
+    category: Optional[str] = None
+    brand: Optional[str] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    description: Optional[str] = None
+    source_line: Optional[str] = None
 
 
 class ProductExtractionResultSchema(BaseResponseSchema):

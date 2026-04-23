@@ -1,4 +1,4 @@
-"""
+﻿"""
 DocumentRepository
 ==================
 """
@@ -21,7 +21,7 @@ class DocumentRepository(BaseRepository[Document, DocumentUpdateSchema, Document
 
     async def get_by_uploaded_file(
         self, uploaded_file_id: uuid.UUID, org_id: uuid.UUID
-    ) -> Document | None:
+    ) -> Optional[Document]:
         stmt = (
             select(Document)
             .where(

@@ -1,4 +1,4 @@
-"""
+﻿"""
 PriceEstimationService
 ======================
 Orchestrates price estimation: stores results from AI pipelines,
@@ -8,7 +8,7 @@ manual entries, and supplier data.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Optional, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -47,7 +47,7 @@ class PriceEstimationService(BaseService[PriceEstimationRepository]):
 
     async def get_latest_for_product(
         self, product_id: uuid.UUID, org_id: uuid.UUID
-    ) -> PriceEstimationResponseSchema | None:
+    ) -> Optional[PriceEstimationResponseSchema]:
         estimation = await self.repo.get_latest_for_product(product_id, org_id)
         if estimation is None:
             return None

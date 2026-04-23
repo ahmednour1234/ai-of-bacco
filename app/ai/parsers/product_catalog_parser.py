@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/product_catalog_parser.py
 ------------------------------------------
 Stub product-catalog parser.
@@ -20,11 +20,11 @@ class ProductCatalogParser(BaseParser):
             "products": [
                 {
                     "name": str,
-                    "sku": str | None,
-                    "description": str | None,
-                    "category": str | None,
-                    "unit": str | None,
-                    "unit_price": float | None,
+                    "sku": Optional[str],
+                    "description": Optional[str],
+                    "category": Optional[str],
+                    "unit": Optional[str],
+                    "unit_price": Optional[float],
                     "currency": str,
                 }
             ],

@@ -1,4 +1,4 @@
-"""
+﻿"""
 SupplierRepository
 ==================
 """
@@ -19,7 +19,7 @@ class SupplierRepository(BaseRepository[Supplier, SupplierCreateSchema, Supplier
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, Supplier)
 
-    async def get_by_slug(self, slug: str, org_id: uuid.UUID) -> Supplier | None:
+    async def get_by_slug(self, slug: str, org_id: uuid.UUID) -> Optional[Supplier]:
         stmt = (
             select(Supplier)
             .where(

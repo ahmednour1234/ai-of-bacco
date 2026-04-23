@@ -1,4 +1,4 @@
-"""
+﻿"""
 LearnedRuleRepository
 =====================
 Data-access layer for LearnedRule.
@@ -41,7 +41,7 @@ class LearnedRuleRepository(BaseRepository[LearnedRule, dict, dict]):
 
     async def find_by_value(
         self, rule_type: str, rule_value: str
-    ) -> LearnedRule | None:
+    ) -> Optional[LearnedRule]:
         """Case-insensitive lookup — used before inserting to avoid duplicates."""
         stmt = select(LearnedRule).where(
             LearnedRule.rule_type == rule_type,
@@ -55,7 +55,7 @@ class LearnedRuleRepository(BaseRepository[LearnedRule, dict, dict]):
         rule_type: str,
         rule_value: str,
         weight_delta: float = 0.5,
-        category_hint: str | None = None,
+        category_hint: Optional[str] = None,
     ) -> LearnedRule:
         """
         Insert a new rule or increase its weight if it already exists.

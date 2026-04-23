@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/pdf_parser.py
 ============================
 PDF → DocumentRepresentation
@@ -15,7 +15,7 @@ from __future__ import annotations
 import io
 import re
 import unicodedata
-from typing import TYPE_CHECKING
+from typing import Optional, TYPE_CHECKING
 
 from app.ai.interfaces.base_parser import BaseParser
 from app.schemas.document_representation import (
@@ -65,7 +65,7 @@ def _detect_language(text: str) -> tuple[str, bool]:
     return "en", False
 
 
-def _clean_text(text: str | None) -> str:
+def _clean_text(text: Optional[str]) -> str:
     if not text:
         return ""
     # Normalize unicode, collapse whitespace

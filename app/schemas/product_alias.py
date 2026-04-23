@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductAlias Schemas
 ====================
 """
@@ -16,14 +16,14 @@ from app.schemas.base import BaseSchema, BaseResponseSchema
 class ProductAliasCreateSchema(BaseSchema):
     product_id: uuid.UUID
     alias_text: str = Field(..., min_length=1)
-    source: str | None = None
-    language: str | None = "en"
+    source: Optional[str] = None
+    language: Optional[str] = "en"
 
 
 class ProductAliasResponseSchema(BaseResponseSchema):
     id: uuid.UUID
     product_id: uuid.UUID
     alias_text: str
-    source: str | None
-    language: str | None
+    source: Optional[str]
+    language: Optional[str]
     created_at: datetime

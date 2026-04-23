@@ -1,4 +1,4 @@
-"""
+﻿"""
 UploadedFile Schemas
 ====================
 """
@@ -23,7 +23,7 @@ class UploadedFileResponseSchema(BaseResponseSchema):
     file_type: UploadedFileType
     status: UploadedFileStatus
     org_id: uuid.UUID
-    owner_id: uuid.UUID | None
+    owner_id: Optional[uuid.UUID]
     created_at: datetime
     updated_at: datetime
 

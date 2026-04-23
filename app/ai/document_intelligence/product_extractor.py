@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/document_intelligence/product_extractor.py
 =================================================
 Stage 6 — Product Extraction
@@ -20,7 +20,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import Optional, Any
 
 from app.core.config import get_settings
 from app.schemas.document_representation import (
@@ -65,7 +65,7 @@ _CATEGORY_MAP: dict[str, list[str]] = {
 }
 
 
-def _guess_category(text: str) -> str | None:
+def _guess_category(text: str) -> Optional[str]:
     lower = text.lower()
     for category, keywords in _CATEGORY_MAP.items():
         if any(kw in lower for kw in keywords):
@@ -73,7 +73,7 @@ def _guess_category(text: str) -> str | None:
     return None
 
 
-def _extract_quantity(text: str) -> tuple[float | None, str | None]:
+def _extract_quantity(text: str) -> Optional[tuple[float]Optional[, str]]:
     m = _QUANTITY_RE.search(text)
     if m:
         try:
@@ -92,7 +92,7 @@ def _extract_quantity(text: str) -> tuple[float | None, str | None]:
     return None, None
 
 
-def _extract_price(text: str) -> float | None:
+def _extract_price(text: str) -> Optional[float]:
     # Find last numeric-looking value (most likely the price in tabular rows)
     matches = _PRICE_RE.findall(text)
     if not matches:
@@ -108,12 +108,12 @@ def _extract_price(text: str) -> float | None:
     return None
 
 
-def _extract_unit(text: str) -> str | None:
+def _extract_unit(text: str) -> Optional[str]:
     m = _UNIT_WORDS.search(text)
     return m.group(1) if m else None
 
 
-def _heuristic_extract(row_text: str, description_text: str | None) -> dict[str, Any]:
+def _heuristic_extract(row_text: str, description_text: Optional[str]) -> dict[str, Any]:
     # Try QuantityParser first (more robust than the bare regex)
     qr = _qty_parser.parse(row_text)
     qty = qr.quantity
@@ -131,7 +131,7 @@ def _heuristic_extract(row_text: str, description_text: str | None) -> dict[str,
     category = _guess_category(row_text)
 
     # Total: try to compute if we have both qty and price
-    total: float | None = None
+    total: Optional[float] = None
     if qty is not None and price is not None:
         total = round(qty * price, 4)
 
@@ -145,7 +145,7 @@ def _heuristic_extract(row_text: str, description_text: str | None) -> dict[str,
         name = name[:252] + "..."
 
     # Extract model code
-    model_code: str | None = None
+    model_code: Optional[str] = None
     _model_re = re.compile(r"\b[A-Z0-9]{3,}(?:[-/][A-Z0-9]+)*\b")
     m_code = _model_re.search(row_text)
     if m_code:
@@ -201,8 +201,8 @@ _EXTRACT_BATCH_SIZE = 30  # product rows per LLM call
 async def _llm_extract(
     product_rows: list[tuple[int, str]],         # (original_row_index, text)
     description_map: dict[int, str],             # row_index → merged description text
-    few_shot_examples: list[dict[str, Any]] | None = None,
-) -> list[dict[str, Any]] | None:
+    few_shot_examples: Optional[list[dict[str, Any]]] = None,
+) -> Optional[list[dict[str, Any]]]:
     settings = get_settings()
     api_key = getattr(settings, "OPENAI_API_KEY", "")
     model = getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
@@ -265,7 +265,7 @@ class ProductExtractor:
 
     def __init__(
         self,
-        correction_examples: list[dict[str, Any]] | None = None,
+        correction_examples: Optional[list[dict[str, Any]]] = None,
     ) -> None:
         self._correction_examples = correction_examples or []
 
@@ -316,7 +316,7 @@ class ProductExtractor:
 
         # Get coordinates JSONB from region blocks/tables (if available)
         # We build a position->bbox mapping via block text matching (best effort)
-        bbox_map: dict[int, dict | None] = self._build_bbox_map(region, classified_rows)
+        bbox_map: Optional[dict[int, dict]] = self._build_bbox_map(region, classified_rows)
 
         # Process in batches
         candidates: list[CandidateData] = []
@@ -380,7 +380,7 @@ class ProductExtractor:
     def _build_bbox_map(
         region: DocumentRegion,
         classified_rows: list[ClassifiedRow],
-    ) -> dict[int, dict | None]:
+    ) -> Optional[dict[int, dict]]:
         """
         Best-effort: map row_index → BoundingBox dict.
         Matches classified row text to block bboxes via equality.
@@ -391,7 +391,7 @@ class ProductExtractor:
             if block.bbox is not None:
                 text_to_bbox[block.raw_text.strip()] = block.bbox.to_dict()
 
-        result: dict[int, dict | None] = {}
+        result: Optional[dict[int, dict]] = {}
         for cr in classified_rows:
             result[cr.row_index] = text_to_bbox.get(cr.raw_text.strip())
         return result
@@ -399,14 +399,14 @@ class ProductExtractor:
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
 
-def _safe_str(value: Any) -> str | None:
+def _safe_str(value: Any) -> Optional[str]:
     if value is None:
         return None
     s = str(value).strip()
     return s if s else None
 
 
-def _safe_float(value: Any) -> float | None:
+def _safe_float(value: Any) -> Optional[float]:
     if value is None:
         return None
     try:

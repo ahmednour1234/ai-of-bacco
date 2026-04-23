@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/tasks/document_tasks.py
 -----------------------------
 Celery tasks for document processing (parse → extract → match).
@@ -9,7 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import uuid
-from typing import Any
+from typing import Optional, Any
 
 from app.tasks.celery_app import celery_app
 
@@ -42,7 +42,7 @@ def run_extraction_pipeline(
     job_id: str,
     filename: str,
     file_bytes_b64: str,
-    correction_examples: list[dict] | None = None,
+    correction_examples: Optional[list[dict]] = None,
 ) -> dict:
     """
     Execute the UniversalExtractionPipeline and persist results.

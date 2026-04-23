@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/invoice_parser.py
 ----------------------------------
 Stub invoice parser.
@@ -17,10 +17,10 @@ class InvoiceParser(BaseParser):
 
         Expected return shape:
         {
-            "invoice_number": str | None,
-            "invoice_date": str | None,   # ISO 8601
-            "supplier_name": str | None,
-            "total_amount": float | None,
+            "invoice_number": Optional[str],
+            "invoice_date": Optional[str],   # ISO 8601
+            "supplier_name": Optional[str],
+            "total_amount": Optional[float],
             "currency": str,
             "line_items": [
                 {

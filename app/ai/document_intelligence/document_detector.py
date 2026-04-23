@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/document_intelligence/document_detector.py
 ==================================================
 Stage 3 — Document Detection
@@ -167,7 +167,7 @@ Guidelines:
 """
 
 
-async def _llm_detect(doc: DocumentRepresentation) -> DetectionResult | None:
+async def _llm_detect(doc: DocumentRepresentation) -> Optional[DetectionResult]:
     """
     Call OpenAI to classify the document.
     Returns DetectionResult on success, None on any error (caller uses heuristic fallback).

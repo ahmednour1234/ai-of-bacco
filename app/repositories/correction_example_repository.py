@@ -1,4 +1,4 @@
-"""
+﻿"""
 CorrectionExampleRepository
 ============================
 Data-access layer for CorrectionExample.
@@ -72,13 +72,13 @@ class CorrectionExampleRepository(
         self,
         raw_text: str,
         correct_label: str,
-        correct_name: str | None,
-        correct_category: str | None,
-        correct_brand: str | None,
-        correct_description: str | None,
-        correct_quantity: float | None,
-        correct_unit: str | None,
-        correct_price: float | None,
+        correct_name: Optional[str],
+        correct_category: Optional[str],
+        correct_brand: Optional[str],
+        correct_description: Optional[str],
+        correct_quantity: Optional[float],
+        correct_unit: Optional[str],
+        correct_price: Optional[float],
     ) -> CorrectionExample:
         normalized = re.sub(r"\s+", " ", raw_text.strip().lower())
         example = CorrectionExample(

@@ -96,35 +96,35 @@ class ExtractionCandidate(UUIDMixin, TimestampMixin, Base):
         return self.corrected_label or self.predicted_label
 
     @property
-    def effective_name(self) -> str | None:
+    def effective_name(self) -> Optional[str]:
         return self.corrected_name or self.product_name
 
     @property
-    def effective_category(self) -> str | None:
+    def effective_category(self) -> Optional[str]:
         return self.corrected_category or self.category
 
     @property
-    def effective_brand(self) -> str | None:
+    def effective_brand(self) -> Optional[str]:
         return self.corrected_brand or self.brand
 
     @property
-    def effective_quantity(self) -> float | None:
+    def effective_quantity(self) -> Optional[float]:
         if self.corrected_quantity is not None:
             return self.corrected_quantity
         return self.quantity
 
     @property
-    def effective_unit(self) -> str | None:
+    def effective_unit(self) -> Optional[str]:
         return self.corrected_unit or self.unit
 
     @property
-    def effective_price(self) -> float | None:
+    def effective_price(self) -> Optional[float]:
         if self.corrected_price is not None:
             return self.corrected_price
         return self.price
 
     @property
-    def effective_description(self) -> str | None:
+    def effective_description(self) -> Optional[str]:
         return self.corrected_description or self.description
 
     def __repr__(self) -> str:

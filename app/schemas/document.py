@@ -1,4 +1,4 @@
-"""
+﻿"""
 Document Schemas
 ================
 """
@@ -7,16 +7,16 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Optional, Any
 
 from app.schemas.base import BaseSchema, BaseResponseSchema
 from app.models.document import DocumentType, DocumentStatus
 
 
 class DocumentUpdateSchema(BaseSchema):
-    doc_type: DocumentType | None = None
-    raw_text: str | None = None
-    parsed_data: dict[str, Any] | None = None
+    doc_type: Optional[DocumentType] = None
+    raw_text: Optional[str] = None
+    parsed_data: Optional[dict[str, Any]] = None
 
 
 class DocumentResponseSchema(BaseResponseSchema):
@@ -24,9 +24,9 @@ class DocumentResponseSchema(BaseResponseSchema):
     uploaded_file_id: uuid.UUID
     doc_type: DocumentType
     status: DocumentStatus
-    raw_text: str | None
-    parsed_data: dict[str, Any] | None
-    error_message: str | None
+    raw_text: Optional[str]
+    parsed_data: Optional[dict[str, Any]]
+    error_message: Optional[str]
     org_id: uuid.UUID
     created_at: datetime
     updated_at: datetime

@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/schemas/document_representation.py
 =======================================
 In-memory intermediate representation produced by the universal parsers.
@@ -22,7 +22,7 @@ After detection / classification stages:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Optional, Any
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -52,7 +52,7 @@ class DocumentBlock:
     block_type: str                        # "text" | "heading" | "image" | "table_caption" | "footer"
     raw_text: str
     page: int = 0
-    bbox: BoundingBox | None = None
+    bbox: Optional[BoundingBox] = None
     metadata: dict[str, Any] = field(default_factory=dict)
 
 
@@ -64,9 +64,9 @@ class DocumentTable:
     headers: list[str] = field(default_factory=list)     # normalised column names
     rows: list[list[str]] = field(default_factory=list)  # data rows as list of strings
     raw_rows: list[list[Any]] = field(default_factory=list)  # raw cell values
-    bbox: BoundingBox | None = None
+    bbox: Optional[BoundingBox] = None
     confidence: float = 1.0
-    sheet_name: str | None = None   # for Excel multi-sheet documents
+    sheet_name: Optional[str] = None   # for Excel multi-sheet documents
 
 
 @dataclass

@@ -1,4 +1,4 @@
-"""
+﻿"""
 BaseRepository
 ==============
 Generic data-access layer base class.
@@ -21,7 +21,7 @@ Usage:
 from __future__ import annotations
 
 import uuid
-from typing import Any, Generic, TypeVar
+from typing import Optional, Any, Generic, TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -48,8 +48,8 @@ class BaseRepository(Generic[ModelType, CreateSchema, UpdateSchema]):
     async def get_by_id(
         self,
         record_id: uuid.UUID | str,
-        org_id: uuid.UUID | None = None,
-    ) -> ModelType | None:
+        org_id: Optional[uuid.UUID] = None,
+    ) -> Optional[ModelType]:
         """
         Find by primary key.
         Equivalent to: Model::find($id) or Model::where('org_id', $org)->find($id)
@@ -65,8 +65,8 @@ class BaseRepository(Generic[ModelType, CreateSchema, UpdateSchema]):
 
     async def get_all(
         self,
-        org_id: uuid.UUID | None = None,
-        filters: dict[str, Any] | None = None,
+        org_id: Optional[uuid.UUID] = None,
+        filters: Optional[dict[str, Any]] = None,
         order_by: Any = None,
     ) -> list[ModelType]:
         """
@@ -90,8 +90,8 @@ class BaseRepository(Generic[ModelType, CreateSchema, UpdateSchema]):
         self,
         page: int = 1,
         per_page: int = 15,
-        org_id: uuid.UUID | None = None,
-        filters: dict[str, Any] | None = None,
+        org_id: Optional[uuid.UUID] = None,
+        filters: Optional[dict[str, Any]] = None,
         order_by: Any = None,
     ) -> tuple[list[ModelType], int]:
         """
@@ -127,7 +127,7 @@ class BaseRepository(Generic[ModelType, CreateSchema, UpdateSchema]):
     async def exists(
         self,
         record_id: uuid.UUID | str,
-        org_id: uuid.UUID | None = None,
+        org_id: Optional[uuid.UUID] = None,
     ) -> bool:
         """Check if a record exists. Equivalent to: Model::where(...)->exists()"""
         stmt = select(func.count()).where(

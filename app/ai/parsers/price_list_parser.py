@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/price_list_parser.py
 -------------------------------------
 Stub price-list document parser.
@@ -17,15 +17,15 @@ class PriceListParser(BaseParser):
 
         Expected return shape:
         {
-            "supplier_name": str | None,
-            "effective_date": str | None,   # ISO 8601
+            "supplier_name": Optional[str],
+            "effective_date": Optional[str],   # ISO 8601
             "currency": str,
             "items": [
                 {
-                    "sku": str | None,
+                    "sku": Optional[str],
                     "description": str,
                     "unit_price": float,
-                    "unit": str | None,
+                    "unit": Optional[str],
                 }
             ],
             "raw_text": str,

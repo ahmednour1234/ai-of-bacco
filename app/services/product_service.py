@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductService
 ==============
 Business logic layer for products.
@@ -11,7 +11,7 @@ This is the FULL reference implementation. All other services follow this patter
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Optional, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -75,7 +75,7 @@ class ProductService(BaseService[ProductRepository]):
         org_id: uuid.UUID,
         page: int = 1,
         per_page: int = 15,
-        filters: dict[str, Any] | None = None,
+        filters: Optional[dict[str, Any]] = None,
     ) -> tuple[list[ProductResponseSchema], int]:
         """
         Return a paginated list of products.

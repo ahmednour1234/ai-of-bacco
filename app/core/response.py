@@ -1,4 +1,4 @@
-"""
+﻿"""
 API Response Helpers
 ====================
 Equivalent to Laravel's API Resource base class + response() helper.
@@ -19,7 +19,7 @@ Usage in a router:
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Optional, Any
 
 from fastapi.encoders import jsonable_encoder
 from fastapi import status
@@ -29,7 +29,7 @@ from fastapi.responses import JSONResponse
 def success_response(
     data: Any = None,
     message: str = "Success.",
-    meta: dict[str, Any] | None = None,
+    meta: Optional[dict[str, Any]] = None,
     status_code: int = status.HTTP_200_OK,
 ) -> JSONResponse:
     """
@@ -79,7 +79,7 @@ def paginated_response(
 
 def error_response(
     message: str = "An error occurred.",
-    errors: dict[str, Any] | None = None,
+    errors: Optional[dict[str, Any]] = None,
     status_code: int = status.HTTP_400_BAD_REQUEST,
 ) -> JSONResponse:
     """

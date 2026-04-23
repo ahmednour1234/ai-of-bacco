@@ -1,4 +1,4 @@
-"""
+﻿"""
 PriceEstimationRepository
 =========================
 """
@@ -35,7 +35,7 @@ class PriceEstimationRepository(BaseRepository[PriceEstimation, PriceEstimationC
 
     async def get_latest_for_product(
         self, product_id: uuid.UUID, org_id: uuid.UUID
-    ) -> PriceEstimation | None:
+    ) -> Optional[PriceEstimation]:
         """Get the most recent price estimation for a product."""
         stmt = (
             select(PriceEstimation)

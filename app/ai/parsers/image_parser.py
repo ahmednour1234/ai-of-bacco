@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/image_parser.py
 ==============================
 Image (JPG / PNG / TIFF / BMP / WEBP) → DocumentRepresentation
@@ -17,7 +17,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from typing import Any
+from typing import Optional, Any
 
 from app.ai.interfaces.base_parser import BaseParser
 from app.core.config import get_settings
@@ -67,7 +67,7 @@ def _detect_language(text: str) -> tuple[str, bool]:
     return "en", False
 
 
-def _clean(text: str | None) -> str:
+def _clean(text: Optional[str]) -> str:
     if not text:
         return ""
     text = unicodedata.normalize("NFKC", text)

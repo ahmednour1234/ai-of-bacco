@@ -47,7 +47,7 @@ class ProductAlias(UUIDMixin, TimestampMixin, TenantMixin, Base):
 
     # ── pgvector (1536-dim, OpenAI ada-002 / text-embedding-3-small) ──────────
     # Uncomment after enabling the pgvector extension + running a migration:
-    # embedding: Mapped[list[float] | None] = mapped_column(
+    # embedding: Optional[Mapped[list[float]]] = mapped_column(
     #     Vector(1536), nullable=True
     # )
 

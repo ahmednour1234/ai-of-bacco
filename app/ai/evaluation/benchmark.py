@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/evaluation/benchmark.py
 ================================
 BenchmarkRunner — loads test datasets (JSON / CSV), runs the extraction
@@ -27,7 +27,7 @@ import io
 import json
 import logging
 import pathlib
-from typing import Any
+from typing import Optional, Any
 
 from app.ai.evaluation.metrics import (
     EvaluationReport,
@@ -135,7 +135,7 @@ class BenchmarkRunner:
 
     @staticmethod
     def _dict_to_row(rec: dict[str, Any]) -> LabeledRow:
-        def _flt(v: Any) -> float | None:
+        def _flt(v: Any) -> Optional[float]:
             if v is None or str(v).strip() == "":
                 return None
             try:

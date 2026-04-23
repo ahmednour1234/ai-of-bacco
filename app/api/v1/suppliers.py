@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/api/v1/suppliers.py
 ------------------------
 Supplier CRUD endpoints.
@@ -24,7 +24,7 @@ async def list_suppliers(
     current_user: CurrentUserDep,
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
-    search: str | None = Query(None),
+    search: Optional[str] = Query(None),
 ):
     service = SupplierService(db)
     items, total = await service.list_suppliers(

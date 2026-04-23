@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/evaluation/metrics.py
 =============================
 Precision / recall / F1 and field-level accuracy metrics for the extraction pipeline.
@@ -11,7 +11,7 @@ Usage:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Optional, Any
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -26,12 +26,12 @@ class LabeledRow:
     """
     raw_text: str
     label: str                   # product | ignore | meta | total | …
-    product_name: str | None = None
-    quantity: float | None = None
-    unit: str | None = None
-    price: float | None = None
-    brand: str | None = None
-    category: str | None = None
+    product_name: Optional[str] = None
+    quantity: Optional[float] = None
+    unit: Optional[str] = None
+    price: Optional[float] = None
+    brand: Optional[str] = None
+    category: Optional[str] = None
 
 
 @dataclass
@@ -91,7 +91,7 @@ def _labels_match(pred: str, truth: str) -> bool:
     return pred.lower() == truth.lower()
 
 
-def _name_match(pred: str | None, truth: str | None, min_overlap: float = 0.50) -> bool:
+def _name_match(pred: Optional[str], truth: Optional[str], min_overlap: float = 0.50) -> bool:
     """Fuzzy name match: Jaccard token overlap >= min_overlap."""
     if pred is None or truth is None:
         return pred == truth
@@ -103,7 +103,7 @@ def _name_match(pred: str | None, truth: str | None, min_overlap: float = 0.50) 
     return len(overlap) / len(truth_toks) >= min_overlap
 
 
-def _numeric_match(pred: float | None, truth: float | None, rel_tol: float = 0.05) -> bool:
+def _numeric_match(pred: Optional[float], truth: Optional[float], rel_tol: float = 0.05) -> bool:
     if pred is None or truth is None:
         return pred == truth
     if truth == 0:
@@ -111,7 +111,7 @@ def _numeric_match(pred: float | None, truth: float | None, rel_tol: float = 0.0
     return abs(pred - truth) / abs(truth) <= rel_tol
 
 
-def _text_exact(pred: str | None, truth: str | None) -> bool:
+def _text_exact(pred: Optional[str], truth: Optional[str]) -> bool:
     if pred is None and truth is None:
         return True
     if pred is None or truth is None:

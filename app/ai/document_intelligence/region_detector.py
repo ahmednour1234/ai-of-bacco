@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/document_intelligence/region_detector.py
 ===============================================
 Stage 4 — Region Detection
@@ -139,7 +139,7 @@ def _heuristic_detect_regions(
 
     # ── Classify blocks ──────────────────────────────────────────────────────
     # Group consecutive blocks with same classification into one region
-    current_type: str | None = None
+    current_type: Optional[str] = None
     current_blocks: list[DocumentBlock] = []
     current_text_parts: list[str] = []
 
@@ -223,7 +223,7 @@ Rules:
 async def _llm_detect_regions(
     doc: DocumentRepresentation,
     detection: DetectionResult,
-) -> list[DocumentRegion] | None:
+) -> Optional[list[DocumentRegion]]:
     settings = get_settings()
     api_key = getattr(settings, "OPENAI_API_KEY", "")
     model = getattr(settings, "OPENAI_MODEL", "gpt-4o-mini")
@@ -293,7 +293,7 @@ async def _llm_detect_regions(
             region_counter += 1
 
         # Group blocks by LLM-assigned type
-        current_type: str | None = None
+        current_type: Optional[str] = None
         current_blocks: list[DocumentBlock] = []
         current_text: list[str] = []
         current_conf: float = 0.8

@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import asyncio
 import csv
@@ -6,7 +6,7 @@ import io
 import logging
 import re
 from functools import partial
-from typing import Iterable
+from typing import Optional, Iterable
 
 from fastapi import UploadFile
 
@@ -49,10 +49,10 @@ class ProductExtractionService:
 
     def __init__(
         self,
-        extra_product_keywords: set[str] | None = None,
-        extra_ignore_phrases: list[str] | None = None,
-        extra_category_keywords: dict[str, str] | None = None,
-        correction_examples: list[dict] | None = None,
+        extra_product_keywords: Optional[set[str]] = None,
+        extra_ignore_phrases: Optional[list[str]] = None,
+        extra_category_keywords: Optional[dict[str, str]] = None,
+        correction_examples: Optional[list[dict]] = None,
         enable_llm_qty: bool = False,
     ) -> None:
         self._extra_product_keywords: frozenset[str] = frozenset(
@@ -536,9 +536,9 @@ class ProductExtractionService:
         # 3) fallback sequential classification
         return self._sequential_line_extraction(lines)
 
-    def _try_table_extraction(self, lines: list[str]) -> list[CandidateData] | None:
-        header_idx: int | None = None
-        header_map: dict[str, int] | None = None
+    def _try_table_extraction(self, lines: list[str]) -> Optional[list[CandidateData]]:
+        header_idx: Optional[int] = None
+        header_map: Optional[dict[str, int]] = None
 
         for idx, line in enumerate(lines):
             mapped = self._map_header_columns(line)
@@ -594,7 +594,7 @@ class ProductExtractionService:
             normalized_unit = self._unit_normalizer.canonical(raw_unit)
 
             # Extract model code from product_name or code field
-            model_code_str: str | None = self._first_non_empty(row_dict, ["code", "sku", "model"])
+            model_code_str: Optional[str] = self._first_non_empty(row_dict, ["code", "sku", "model"])
             if not model_code_str:
                 m_code = self._MODEL_CODE_RE.search(product_name)
                 model_code_str = m_code.group(0) if m_code else None
@@ -631,7 +631,7 @@ class ProductExtractionService:
 
         return self._deduplicate_candidates(results) if results else None
 
-    def _try_product_numeric_pair_extraction(self, lines: list[str]) -> list[CandidateData] | None:
+    def _try_product_numeric_pair_extraction(self, lines: list[str]) -> Optional[list[CandidateData]]:
         """
         Handles documents like:
         PRODUCT NAME...
@@ -729,7 +729,7 @@ class ProductExtractionService:
 
     def _sequential_line_extraction(self, lines: list[str]) -> list[CandidateData]:
         results: list[CandidateData] = []
-        pending: CandidateData | None = None
+        pending: Optional[CandidateData] = None
         pos = 0
 
         for line in lines:
@@ -888,7 +888,7 @@ class ProductExtractionService:
     # Table helpers
     # -------------------------------------------------------------------------
 
-    def _map_header_columns(self, line: str) -> dict[str, int] | None:
+    def _map_header_columns(self, line: str) -> Optional[dict[str, int]]:
         cells = self._split_cells(line)
         if not cells:
             return None
@@ -914,7 +914,7 @@ class ProductExtractionService:
 
         return None
 
-    def _resolve_header_alias(self, normalized_header: str) -> str | None:
+    def _resolve_header_alias(self, normalized_header: str) -> Optional[str]:
         # First pass: exact match (prevents "unit" matching "unit price")
         for canonical, aliases in self._TABLE_HEADER_ALIASES.items():
             for alias in aliases:
@@ -948,7 +948,7 @@ class ProductExtractionService:
     # Parsing product rows
     # -------------------------------------------------------------------------
 
-    def _parse_inline_product_row(self, line: str) -> tuple[str | None, float | None, float | None]:
+    def _parse_inline_product_row(self, line: str) -> Optional[tuple[str]Optional[, float]Optional[, float]]:
         """
         Example:
         مكيف ترين مخفي 5 طن حار وبارد انفيرتر 2 13350 26700
@@ -964,7 +964,7 @@ class ProductExtractionService:
 
         return product_name, quantity, price_val
 
-    def _extract_product_name_from_inline_row(self, line: str) -> str | None:
+    def _extract_product_name_from_inline_row(self, line: str) -> Optional[str]:
         clean = self._ITEM_NUMBER_PREFIX.sub("", line).strip()
 
         # SAR price qty SAR total
@@ -985,7 +985,7 @@ class ProductExtractionService:
 
         return clean if self._looks_like_product_line(clean) else None
 
-    def _extract_qty_from_inline_row(self, line: str) -> float | None:
+    def _extract_qty_from_inline_row(self, line: str) -> Optional[float]:
         # explicit qty + unit first
         qty, _ = self._extract_qty_unit(line)
         if qty is not None:
@@ -1020,7 +1020,7 @@ class ProductExtractionService:
 
         return None
 
-    def _extract_unit_price_from_inline_row(self, line: str) -> float | None:
+    def _extract_unit_price_from_inline_row(self, line: str) -> Optional[float]:
         # SAR unit price qty SAR total
         m = re.search(
             r"SAR\s+(?P<price>\d[\d,]*(?:\.\d+)?)\s+\d+(?:\.\d+)?\s+SAR\s+\d[\d,]*(?:\.\d+)?",
@@ -1035,7 +1035,7 @@ class ProductExtractionService:
             return nums[-2]
         return self._extract_price(line)
 
-    def _extract_qty_from_numeric_row(self, line: str) -> float | None:
+    def _extract_qty_from_numeric_row(self, line: str) -> Optional[float]:
         qty, _ = self._extract_qty_unit(line)
         if qty is not None:
             return qty
@@ -1060,7 +1060,7 @@ class ProductExtractionService:
 
         return None
 
-    def _extract_unit_price_from_numeric_row(self, line: str) -> float | None:
+    def _extract_unit_price_from_numeric_row(self, line: str) -> Optional[float]:
         nums = self._extract_numbers(line)
         if len(nums) >= 2:
             # qty, unit_price, total
@@ -1074,13 +1074,13 @@ class ProductExtractionService:
     def _build_product_candidate(self, line: str, position: int, confidence: float) -> CandidateData:
         clean = self._ITEM_NUMBER_PREFIX.sub("", line).strip()
 
-        brand: str | None = None
+        brand: Optional[str] = None
         brand_match = self._BRAND_PATTERN.search(clean)
         if brand_match:
             brand = brand_match.group("brand").strip()
             clean = self._BRAND_PATTERN.sub("", clean).strip()
 
-        category: str | None = None
+        category: Optional[str] = None
         category_match = self._CATEGORY_PATTERN.search(clean)
         if category_match:
             category = category_match.group("category").strip()
@@ -1118,7 +1118,7 @@ class ProductExtractionService:
                 continue
 
             best_score = 0.0
-            best_example: dict | None = None
+            best_example: Optional[dict] = None
 
             for ex in self._correction_examples:
                 ex_words = set(re.findall(r"\b\w{3,}\b", ex.get("normalized_text", "").lower()))
@@ -1368,7 +1368,7 @@ class ProductExtractionService:
                 lines.append(line)
         return lines
 
-    def _extract_qty_unit(self, line: str) -> tuple[float | None, str | None]:
+    def _extract_qty_unit(self, line: str) -> Optional[tuple[float]Optional[, str]]:
         match = self._QTY_UNIT_PATTERN.search(line)
         if not match:
             return None, None
@@ -1376,7 +1376,7 @@ class ProductExtractionService:
         unit = match.group("unit")
         return qty, unit
 
-    def _extract_price(self, line: str) -> float | None:
+    def _extract_price(self, line: str) -> Optional[float]:
         m = self._PRICE_WITH_CURRENCY_RE.search(line)
         if m:
             return self._to_float(m.group(1), remove_commas=True)
@@ -1394,7 +1394,7 @@ class ProductExtractionService:
                 values.append(value)
         return values
 
-    def _infer_category(self, name: str) -> str | None:
+    def _infer_category(self, name: str) -> Optional[str]:
         lower = name.lower()
         for keyword, category in self._extra_category_keywords.items():
             if keyword in lower:
@@ -1407,7 +1407,7 @@ class ProductExtractionService:
     def _normalize_header(self, header: str) -> str:
         return re.sub(r"\s+", "_", header.strip().lower())
 
-    def _first_non_empty(self, row: dict[str, str], keys: Iterable[str]) -> str | None:
+    def _first_non_empty(self, row: dict[str, str], keys: Iterable[str]) -> Optional[str]:
         normalized_row = {self._normalize_header(k): v for k, v in row.items()}
         for key in keys:
             value = normalized_row.get(self._normalize_header(key))
@@ -1418,7 +1418,7 @@ class ProductExtractionService:
                 return candidate
         return None
 
-    def _merge_text(self, first: str | None, second: str | None) -> str | None:
+    def _merge_text(self, first: Optional[str], second: Optional[str]) -> Optional[str]:
         if first and second:
             return f"{first} {second}".strip()
         return first or second
@@ -1446,7 +1446,7 @@ class ProductExtractionService:
         return unique
 
     @staticmethod
-    def _to_float(value: str | None, remove_commas: bool = False) -> float | None:
+    def _to_float(value: Optional[str], remove_commas: bool = False) -> Optional[float]:
         if value is None:
             return None
         text = str(value).strip()

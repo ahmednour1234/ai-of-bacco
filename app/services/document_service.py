@@ -1,4 +1,4 @@
-"""
+﻿"""
 DocumentService
 ===============
 Manages document lifecycle: creation from uploaded files, status transitions,
@@ -8,7 +8,7 @@ and triggering AI pipeline jobs.
 from __future__ import annotations
 
 import uuid
-from typing import Any
+from typing import Optional, Any
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -50,7 +50,7 @@ class DocumentService(BaseService[DocumentRepository]):
         org_id: uuid.UUID,
         page: int = 1,
         per_page: int = 15,
-        filters: dict[str, Any] | None = None,
+        filters: Optional[dict[str, Any]] = None,
     ) -> tuple[list[DocumentListItemSchema], int]:
         items, total = await self.list_paginated(page=page, per_page=per_page, org_id=org_id, filters=filters)
         return [DocumentListItemSchema.model_validate(d) for d in items], total

@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/normalization/quantity_parser.py
 =======================================
 Robust quantity + unit extraction from raw text (Arabic + English).
@@ -22,7 +22,7 @@ from __future__ import annotations
 import logging
 import re
 from dataclasses import dataclass, field
-from typing import Any
+from typing import Optional, Any
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,11 @@ logger = logging.getLogger(__name__)
 
 @dataclass
 class QuantityParseResult:
-    quantity: float | None
-    unit: str | None
+    quantity: Optional[float]
+    unit: Optional[str]
     method: str                   # which method produced this result
     confidence: float = 1.0       # 0.0 – 1.0
-    raw_qty_string: str | None = None
+    raw_qty_string: Optional[str] = None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -139,7 +139,7 @@ class QuantityParser:
         )
 
     async def parse_async(
-        self, text: str, context: str | None = None
+        self, text: str, context: Optional[str] = None
     ) -> QuantityParseResult:
         """
         Async version — falls back to LLM if configured and heuristics fail.
@@ -155,7 +155,7 @@ class QuantityParser:
 
     # ── Heuristic methods ───────────────────────────────────────────────────────
 
-    def _method_explicit(self, text: str) -> QuantityParseResult | None:
+    def _method_explicit(self, text: str) -> Optional[QuantityParseResult]:
         """Match qty immediately followed by a known unit word."""
         for m in _QTY_UNIT_RE.finditer(text):
             qty = _to_float(m.group("qty"))
@@ -169,7 +169,7 @@ class QuantityParser:
             )
         return None
 
-    def _method_fraction(self, text: str) -> QuantityParseResult | None:
+    def _method_fraction(self, text: str) -> Optional[QuantityParseResult]:
         """Match fractions like '1/2 m'."""
         m = _FRACTION_RE.search(text)
         if not m:
@@ -191,7 +191,7 @@ class QuantityParser:
         except (ValueError, TypeError):
             return None
 
-    def _method_range(self, text: str) -> QuantityParseResult | None:
+    def _method_range(self, text: str) -> Optional[QuantityParseResult]:
         """Match ranges like '2-4 units' → midpoint."""
         m = _RANGE_RE.search(text)
         if not m:
@@ -212,7 +212,7 @@ class QuantityParser:
         except (ValueError, TypeError):
             return None
 
-    def _method_reverse_calc(self, text: str) -> QuantityParseResult | None:
+    def _method_reverse_calc(self, text: str) -> Optional[QuantityParseResult]:
         """
         Given three numbers A B C where B×A≈C, infer qty=A, price=B, total=C.
         Common in Arabic quotations: name  qty  unit_price  total
@@ -234,7 +234,7 @@ class QuantityParser:
                     )
         return None
 
-    def _method_trailing_int(self, text: str) -> QuantityParseResult | None:
+    def _method_trailing_int(self, text: str) -> Optional[QuantityParseResult]:
         """Last small integer on the line — very low confidence fallback."""
         m = _TRAILING_INT_RE.search(text)
         if not m:
@@ -253,8 +253,8 @@ class QuantityParser:
     # ── LLM fallback ───────────────────────────────────────────────────────────
 
     async def _method_llm(
-        self, text: str, context: str | None
-    ) -> QuantityParseResult | None:
+        self, text: str, context: Optional[str]
+    ) -> Optional[QuantityParseResult]:
         try:
             from app.core.config import get_settings
             settings = get_settings()

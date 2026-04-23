@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/parsers/universal_document_parser.py
 ===========================================
 Format-agnostic entry point for document parsing.
@@ -41,7 +41,7 @@ _CSV_EXTS = frozenset({"csv", "tsv"})
 _TEXT_EXTS = frozenset({"txt"})
 
 
-def _sniff_format(file_bytes: bytes) -> str | None:
+def _sniff_format(file_bytes: bytes) -> Optional[str]:
     """
     Return format hint from magic bytes: "pdf" | "excel" | "excel_old" | None.
     """
@@ -74,7 +74,7 @@ class UniversalDocumentParser(BaseParser):
         file_bytes: bytes,
         filename: str,
         ext: str,
-        magic: str | None,
+        magic: Optional[str],
     ) -> DocumentRepresentation:
         # ── PDF ───────────────────────────────────────────────────────────────
         if ext in _PDF_EXTS or magic == "pdf":

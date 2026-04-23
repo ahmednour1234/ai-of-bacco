@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/services/extraction_session_service.py
 ==========================================
 Orchestrates a single file-upload extraction job end-to-end using the
@@ -160,7 +160,7 @@ class ExtractionSessionService:
 
     # ── Read ──────────────────────────────────────────────────────────────────
 
-    async def get_session(self, session_id: uuid.UUID) -> ExtractionSessionSchema | None:
+    async def get_session(self, session_id: uuid.UUID) -> Optional[ExtractionSessionSchema]:
         session = await self._session_repo.get_with_candidates(session_id)
         if session is None:
             return None

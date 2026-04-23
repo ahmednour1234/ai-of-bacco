@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/document_intelligence/row_classifier.py
 ==============================================
 Stage 5 — Row Classification
@@ -17,7 +17,7 @@ from __future__ import annotations
 import json
 import logging
 import re
-from typing import Any
+from typing import Optional, Any
 
 from app.core.config import get_settings
 from app.schemas.document_representation import (
@@ -179,7 +179,7 @@ _LLM_BATCH_SIZE = 50  # max rows per LLM call
 async def _llm_classify_rows(
     rows: list[str],
     region_type: str,
-) -> list[tuple[str, float]] | None:
+) -> Optional[list[tuple[str, float]]]:
     """
     Classify rows using LLM.
     Returns list of (label, confidence) per row, or None on failure.

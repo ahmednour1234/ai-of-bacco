@@ -1,4 +1,4 @@
-"""
+﻿"""
 Base Schema Classes
 ===================
 Equivalent to Laravel API Resources + Form Request base classes.
@@ -13,7 +13,7 @@ Provides:
 
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Optional, Generic, TypeVar
 
 from pydantic import BaseModel, ConfigDict
 
@@ -53,8 +53,8 @@ class PaginationMeta(BaseModel):
     page: int
     per_page: int
     last_page: int
-    from_: int | None = None
-    to: int | None = None
+    from_: Optional[int] = None
+    to: Optional[int] = None
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -63,8 +63,8 @@ class APIResponse(BaseModel, Generic[T]):
     """Typed wrapper for success_response(). Used in OpenAPI docs."""
     success: bool = True
     message: str
-    data: T | None = None
-    meta: dict | None = None
+    data: Optional[T] = None
+    meta: Optional[dict] = None
 
 
 class PaginatedAPIResponse(BaseModel, Generic[T]):

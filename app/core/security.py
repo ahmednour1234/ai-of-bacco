@@ -1,4 +1,4 @@
-"""
+﻿"""
 Security Utilities
 ==================
 Equivalent to Laravel's Hash facade + JWT guard.
@@ -12,7 +12,7 @@ Provides:
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
-from typing import Any
+from typing import Optional, Any
 from uuid import UUID
 
 from jose import JWTError, jwt
@@ -41,7 +41,7 @@ def _create_token(
     subject: str | UUID,
     token_type: str,
     expires_delta: timedelta,
-    extra_claims: dict[str, Any] | None = None,
+    extra_claims: Optional[dict[str, Any]] = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
@@ -55,7 +55,7 @@ def _create_token(
     return jwt.encode(payload, settings.SECRET_KEY, algorithm=settings.ALGORITHM)
 
 
-def create_access_token(user_id: str | UUID, extra_claims: dict[str, Any] | None = None) -> str:
+def create_access_token(user_id: str | UUID, extra_claims: Optional[dict[str, Any]] = None) -> str:
     """
     Create a short-lived access token.
     Equivalent to JWTAuth::attempt() returning an access token.

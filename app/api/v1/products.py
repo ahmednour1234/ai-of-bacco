@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/api/v1/products.py
 -----------------------
 Full products endpoint — the reference implementation for all API modules.
@@ -28,8 +28,8 @@ async def list_products(
     current_user: CurrentUserDep,
     page: int = Query(1, ge=1),
     per_page: int = Query(15, ge=1, le=100),
-    search: str | None = Query(None, description="Full-text product name search"),
-    category: str | None = Query(None, description="Filter by category"),
+    search: Optional[str] = Query(None, description="Full-text product name search"),
+    category: Optional[str] = Query(None, description="Filter by category"),
 ):
     """
     List products with optional search and category filtering.

@@ -1,4 +1,4 @@
-"""
+﻿"""
 ProductAliasRepository
 ======================
 """
@@ -32,7 +32,7 @@ class ProductAliasRepository(BaseRepository[ProductAlias, ProductAliasCreateSche
 
     async def find_by_text(
         self, alias_text: str, org_id: uuid.UUID
-    ) -> ProductAlias | None:
+    ) -> Optional[ProductAlias]:
         """Find alias by exact text match within tenant."""
         stmt = (
             select(ProductAlias)

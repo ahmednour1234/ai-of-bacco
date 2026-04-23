@@ -1,4 +1,4 @@
-"""
+﻿"""
 UserRepository
 ==============
 """
@@ -17,7 +17,7 @@ class UserRepository(BaseRepository[User, UserCreateSchema, UserUpdateSchema]):
     def __init__(self, db: AsyncSession) -> None:
         super().__init__(db, User)
 
-    async def get_by_email(self, email: str) -> User | None:
+    async def get_by_email(self, email: str) -> Optional[User]:
         """Find a user by email address (global — no tenant filter)."""
         stmt = (
             select(User)

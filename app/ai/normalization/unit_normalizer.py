@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/ai/normalization/unit_normalizer.py
 =======================================
 Maps raw UOM strings (Arabic + English) to a canonical form.
@@ -217,7 +217,7 @@ class UnitNormalizer:
     3. Returns None if no mapping is found.
     """
 
-    def normalize(self, raw: str | None) -> NormalizedUnit | None:
+    def normalize(self, raw: Optional[str]) -> Optional[NormalizedUnit]:
         if not raw:
             return None
         key = re.sub(r"\s+", " ", raw.strip().lower())
@@ -231,15 +231,15 @@ class UnitNormalizer:
             return NormalizedUnit(canonical=hit[0], category=hit[1], raw=raw)
         return None
 
-    def canonical(self, raw: str | None) -> str | None:
+    def canonical(self, raw: Optional[str]) -> Optional[str]:
         """Return just the canonical string, or None."""
         result = self.normalize(raw)
         return result.canonical if result else None
 
-    def is_weight(self, raw: str | None) -> bool:
+    def is_weight(self, raw: Optional[str]) -> bool:
         result = self.normalize(raw)
         return result is not None and result.category == "weight"
 
-    def is_length(self, raw: str | None) -> bool:
+    def is_length(self, raw: Optional[str]) -> bool:
         result = self.normalize(raw)
         return result is not None and result.category == "length"

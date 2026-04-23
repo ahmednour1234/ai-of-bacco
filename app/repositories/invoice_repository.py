@@ -1,4 +1,4 @@
-"""
+﻿"""
 InvoiceRepository
 =================
 """
@@ -37,7 +37,7 @@ class InvoiceRepository(BaseRepository[Invoice, InvoiceCreateSchema, InvoiceUpda
 
     async def get_with_items(
         self, invoice_id: uuid.UUID, org_id: uuid.UUID
-    ) -> Invoice | None:
+    ) -> Optional[Invoice]:
         """Eager-load invoice line items."""
         stmt = (
             select(Invoice)
@@ -53,7 +53,7 @@ class InvoiceRepository(BaseRepository[Invoice, InvoiceCreateSchema, InvoiceUpda
 
     async def get_by_invoice_number(
         self, invoice_number: str, org_id: uuid.UUID
-    ) -> Invoice | None:
+    ) -> Optional[Invoice]:
         stmt = (
             select(Invoice)
             .where(

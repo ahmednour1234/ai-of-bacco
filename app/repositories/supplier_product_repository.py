@@ -1,4 +1,4 @@
-"""
+﻿"""
 SupplierProductRepository
 =========================
 """
@@ -49,7 +49,7 @@ class SupplierProductRepository(BaseRepository[SupplierProduct, SupplierProductC
 
     async def get_active_price(
         self, supplier_id: uuid.UUID, product_id: uuid.UUID
-    ) -> SupplierProduct | None:
+    ) -> Optional[SupplierProduct]:
         """Get the active supplier-product price entry."""
         stmt = (
             select(SupplierProduct)

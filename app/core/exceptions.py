@@ -1,4 +1,4 @@
-"""
+﻿"""
 Custom Exception Classes
 ========================
 Equivalent to Laravel's custom Exception classes + Handler.php mapping.
@@ -8,7 +8,7 @@ All exceptions are registered as global handlers in app/main.py.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Optional, Any
 
 
 class AppException(Exception):
@@ -19,12 +19,12 @@ class AppException(Exception):
 
     status_code: int = 500
     message: str = "An unexpected error occurred."
-    errors: dict[str, Any] | None = None
+    errors: Optional[dict[str, Any]] = None
 
     def __init__(
         self,
-        message: str | None = None,
-        errors: dict[str, Any] | None = None,
+        message: Optional[str] = None,
+        errors: Optional[dict[str, Any]] = None,
     ) -> None:
         self.message = message or self.__class__.message
         self.errors = errors

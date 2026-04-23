@@ -1,4 +1,4 @@
-"""
+﻿"""
 app/utils/file_helpers.py
 --------------------------
 Utilities for safe file naming, extension extraction, and MIME detection.
@@ -28,7 +28,7 @@ def get_file_extension(filename: str) -> str:
     return Path(filename).suffix.lstrip(".").lower()
 
 
-def detect_file_type(filename: str, content_type: str | None = None) -> str:
+def detect_file_type(filename: str, content_type: Optional[str] = None) -> str:
     """
     Return a canonical MIME type string.
     Falls back to mimetypes guessing from the filename if content_type is absent.
