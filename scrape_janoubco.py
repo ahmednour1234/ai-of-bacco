@@ -105,13 +105,33 @@ def _slug_from_url(url: str) -> str:
 
 # ─── STEP 1: parse sitemaps ────────────────────────────────────────────────────
 
-async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
+def _make_client(timeout: int = 20) -> httpx.AsyncClient:
+    """Create a fresh httpx client with the next rotating proxy."""
+    proxy_url = next_httpx_proxy()
+    kwargs: dict = {"timeout": timeout, "follow_redirects": True, "headers": HEADERS}
+    if proxy_url:
+        kwargs["proxy"] = proxy_url
+    return httpx.AsyncClient(**kwargs)
+
+
+async def _get_url(url: str, timeout: int = 20) -> Optional[httpx.Response]:
+    """GET a URL using a fresh rotating-proxy client. Returns response or None on error."""
+    async with _make_client(timeout) as c:
+        try:
+            r = await c.get(url, headers=HEADERS, timeout=timeout)
+            return r
+        except Exception as e:
+            print(f"  [request error] {url[-70:]}: {e}")
+            return None
+
+
+async def fetch_all_product_urls() -> list[str]:
     """Fetch the sitemap index, then all product sub-sitemaps. Returns list of product URLs."""
-    # Get index
     product_sitemaps = []
-    try:
-        r = await client.get(SITEMAP_INDEX, headers=HEADERS, timeout=20)
-        r.raise_for_status()
+
+    # Try the sitemap index first
+    r = await _get_url(SITEMAP_INDEX, timeout=20)
+    if r is not None and r.status_code == 200:
         try:
             root = ET.fromstring(r.text)
             ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
@@ -120,30 +140,33 @@ async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
                     product_sitemaps.append(loc.text.strip())
         except ET.ParseError:
             product_sitemaps = re.findall(r'https://janoubco\.com/sitemap-product-\d+\.xml', r.text)
-    except Exception as e:
-        print(f"  [sitemap index error] {e}")
-        print("  Falling back to known sitemap URL pattern...")
+    else:
+        status = r.status_code if r is not None else "no response"
+        print(f"  [sitemap index error] status={status} — falling back to known pattern...")
 
-    # Fallback: probe the known pattern URLs if index was blocked or empty
+    # Fallback: probe known pattern URLs, each with its own rotated proxy
     if not product_sitemaps:
         async def probe_sitemap(url: str) -> Optional[str]:
-            try:
-                resp = await client.get(url, headers=HEADERS, timeout=15)
-                if resp.status_code == 200:
-                    return url
-            except Exception:
-                pass
+            resp = await _get_url(url, timeout=15)
+            if resp is not None and resp.status_code == 200:
+                print(f"    [probe ok] {url}")
+                return url
+            status = resp.status_code if resp is not None else "timeout/error"
+            print(f"    [probe fail] {url} → {status}")
             return None
+
         probe_results = await asyncio.gather(*[probe_sitemap(u) for u in _PRODUCT_SITEMAP_PATTERN])
         product_sitemaps = [u for u in probe_results if u]
 
     print(f"  Found {len(product_sitemaps)} product sitemap files")
 
-    # Fetch all product sitemaps concurrently
+    # Fetch each sitemap with its own rotated proxy
     async def fetch_sitemap(url: str) -> list[str]:
+        resp = await _get_url(url, timeout=30)
+        if resp is None or resp.status_code != 200:
+            print(f"  [sitemap fetch error] {url}: status={resp.status_code if resp else 'None'}")
+            return []
         try:
-            resp = await client.get(url, headers=HEADERS, timeout=30)
-            resp.raise_for_status()
             root = ET.fromstring(resp.text)
             ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
             urls = []
@@ -152,12 +175,11 @@ async def fetch_all_product_urls(client: httpx.AsyncClient) -> list[str]:
                 if u and "janoubco.com" in u:
                     urls.append(u)
             return urls
-        except Exception as e:
-            print(f"  [sitemap fetch error] {url}: {e}")
+        except ET.ParseError as e:
+            print(f"  [sitemap parse error] {url}: {e}")
             return []
 
-    tasks = [fetch_sitemap(u) for u in product_sitemaps]
-    results = await asyncio.gather(*tasks)
+    results = await asyncio.gather(*[fetch_sitemap(u) for u in product_sitemaps])
     all_urls = [u for batch in results for u in batch]
     print(f"  Total product URLs from sitemaps: {len(all_urls)}")
     return all_urls
@@ -556,63 +578,57 @@ async def main():
         except Exception as e:
             print(f"  [resume load error] {e}")
 
-    # ── STEP 1: collect all product URLs from sitemaps via httpx ─────────
+    # ── STEP 1: collect all product URLs from sitemaps ───────────────────
     print("\n[STEP 1] Fetching product URLs from sitemaps...")
-    proxy_url = next_httpx_proxy()
-    client_kwargs: dict = {"timeout": 25, "follow_redirects": True, "headers": HEADERS}
-    if proxy_url:
-        client_kwargs["proxy"] = proxy_url
+    all_urls = await fetch_all_product_urls()
 
-    async with httpx.AsyncClient(**client_kwargs) as client:
-        all_urls = await fetch_all_product_urls(client)
+    if not all_urls:
+        print("  No URLs found — aborting")
+        return
 
-        if not all_urls:
-            print("  No URLs found — aborting")
-            return
+    # Filter already-scraped
+    if already_scraped:
+        filtered = [u for u in all_urls if _slug_from_url(u) not in already_scraped]
+        print(f"  After resume filter: {len(filtered)} remaining")
+    else:
+        filtered = all_urls
 
-        # Filter already-scraped
-        if already_scraped:
-            filtered = [u for u in all_urls if _slug_from_url(u) not in already_scraped]
-            print(f"  After resume filter: {len(filtered)} remaining")
-        else:
-            filtered = all_urls
+    # Shuffle to avoid sequential patterns
+    random.shuffle(filtered)
+    n = len(filtered)
 
-        # Shuffle to avoid sequential patterns
-        random.shuffle(filtered)
-        n = len(filtered)
+    # ── STEP 2: fetch + parse product pages concurrently ─────────────────
+    print(f"\n[STEP 2] Fetching {n} product pages "
+          f"(concurrency={CONCURRENCY})...\n")
 
-        # ── STEP 2: fetch + parse product pages concurrently ───────────────
-        print(f"\n[STEP 2] Fetching {n} product pages "
-              f"(concurrency={CONCURRENCY})...\n")
+    total_ins = total_upd = total_skip = 0
+    batch: list[dict] = []
+    done = 0
 
-        total_ins = total_upd = total_skip = 0
-        batch: list[dict] = []
-        done = 0
+    async def process(url: str):
+        nonlocal done
+        result = await fetch_product(url)
+        done += 1
+        return result
 
-        async def process(url: str):
-            nonlocal done
-            result = await fetch_product(url)
-            done += 1
-            return result
+    tasks = [process(u) for u in filtered]
 
-        tasks = [process(u) for u in filtered]
+    for coro in asyncio.as_completed(tasks):
+        result = await coro
+        if result:
+            batch.append(result)
 
-        for coro in asyncio.as_completed(tasks):
-            result = await coro
-            if result:
-                batch.append(result)
-
-            if len(batch) >= _BATCH_SAVE or (done == n and batch):
-                try:
-                    ins, upd, sk = save_to_sqlite(batch)
-                    total_ins  += ins
-                    total_upd  += upd
-                    total_skip += sk
-                    print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
-                          f"{sk} skipped (total new: {total_ins})")
-                except Exception as db_err:
-                    print(f"  [save error] {db_err}")
-                batch = []
+        if len(batch) >= _BATCH_SAVE or (done == n and batch):
+            try:
+                ins, upd, sk = save_to_sqlite(batch)
+                total_ins  += ins
+                total_upd  += upd
+                total_skip += sk
+                print(f"  [{done}/{n}] Saved batch: +{ins} new, ~{upd} updated, "
+                      f"{sk} skipped (total new: {total_ins})")
+            except Exception as db_err:
+                print(f"  [save error] {db_err}")
+            batch = []
 
     print(f"\n{'=' * 60}")
     print(f"  DONE — inserted={total_ins}, updated={total_upd}, skipped={total_skip}")
