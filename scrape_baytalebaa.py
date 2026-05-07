@@ -486,7 +486,7 @@ async def main() -> None:
     print(f"\n[2/3] Fetching {total} product pages via Playwright (concurrency={CONCURRENCY})...")
 
     proxy = next_playwright_proxy()
-    launch_kwargs: dict = {"headless": True}
+    launch_kwargs: dict = {"headless": True, "executable_path": r"C:\Program Files\Google\Chrome\Application\chrome.exe"}
     if proxy:
         launch_kwargs["proxy"] = proxy
         print(f"  Using proxy: {proxy.get('server', '')[:40]}...")

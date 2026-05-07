@@ -27,13 +27,12 @@ from app.core.config import get_settings
 settings = get_settings()
 
 # ── Engine ─────────────────────────────────────────────────────────────────────
-scraper_engine = create_async_engine(
-    settings.SCRAPER_DATABASE_URL,
-    echo=settings.APP_DEBUG,
-    pool_pre_ping=True,
-    pool_size=5,
-    max_overflow=10,
-)
+_is_sqlite = settings.SCRAPER_DATABASE_URL.startswith("sqlite")
+_engine_kwargs: dict = {"echo": settings.APP_DEBUG, "pool_pre_ping": not _is_sqlite}
+if not _is_sqlite:
+    _engine_kwargs["pool_size"] = 5
+    _engine_kwargs["max_overflow"] = 10
+scraper_engine = create_async_engine(settings.SCRAPER_DATABASE_URL, **_engine_kwargs)
 
 # ── Session factory ────────────────────────────────────────────────────────────
 ScraperSessionLocal = async_sessionmaker(
