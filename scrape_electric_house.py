@@ -127,8 +127,10 @@ def _brand_from_name(name: str) -> str:
 
 # ─── browser context factory ──────────────────────────────────────────────────
 
+CHROME_PATH = r"C:\Program Files\Google\Chrome\Application\chrome.exe"
+
 async def _make_context(pw):
-    browser = await pw.chromium.launch(headless=True)
+    browser = await pw.chromium.launch(headless=True, executable_path=CHROME_PATH)
     context = await browser.new_context(
         user_agent=(
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

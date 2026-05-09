@@ -9,6 +9,7 @@ import os
 import re
 import unicodedata
 from pathlib import Path
+from typing import Optional
 
 
 def safe_filename(filename: str) -> str:
