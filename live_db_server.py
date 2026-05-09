@@ -38,6 +38,14 @@ _push_proc   = None
 _push_log:   list  = []
 _push_lock   = threading.Lock()
 
+_load_json_proc   = None
+_load_json_log:   list  = []
+_load_json_lock   = threading.Lock()
+
+_export_proc   = None
+_export_log:   list  = []
+_export_lock   = threading.Lock()
+
 def _refetch_status() -> str:
     with _refetch_lock:
         if _refetch_proc is None:
@@ -94,6 +102,81 @@ def _run_push(force_all: bool = False):
         )
         _push_proc = new_proc
     threading.Thread(target=_collect_push_output, args=(new_proc,), daemon=True).start()
+
+def _load_json_status() -> str:
+    with _load_json_lock:
+        if _load_json_proc is None:
+            return "idle"
+        ret = _load_json_proc.poll()
+        if ret is None:
+            return "running"
+        return "done" if ret == 0 else f"error:{ret}"
+
+def _collect_load_json_output(proc):
+    global _load_json_log
+    for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        with _load_json_lock:
+            _load_json_log.append(line)
+            if len(_load_json_log) > 500:
+                _load_json_log = _load_json_log[-500:]
+
+def _run_load_json():
+    global _load_json_proc, _load_json_log
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "load_json_to_db.py")
+    with _load_json_lock:
+        if _load_json_proc is not None and _load_json_proc.poll() is None:
+            return
+        _load_json_log = []
+        new_proc = subprocess.Popen(
+            [sys.executable, script],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=os.environ.copy(),
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        _load_json_proc = new_proc
+    threading.Thread(target=_collect_load_json_output, args=(new_proc,), daemon=True).start()
+
+def _export_status() -> str:
+    with _export_lock:
+        if _export_proc is None:
+            return "idle"
+        ret = _export_proc.poll()
+        if ret is None:
+            return "running"
+        return "done" if ret == 0 else f"error:{ret}"
+
+def _collect_export_output(proc):
+    global _export_log
+    for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        with _export_lock:
+            _export_log.append(line)
+            if len(_export_log) > 200:
+                _export_log = _export_log[-200:]
+
+def _run_export(table: str = ""):
+    global _export_proc, _export_log
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_db_sql.py")
+    with _export_lock:
+        if _export_proc is not None and _export_proc.poll() is None:
+            return
+        _export_log = []
+        cmd = [sys.executable, script]
+        if table:
+            cmd += ["--table", table]
+        env = os.environ.copy()
+        env["PYTHONIOENCODING"] = "utf-8"
+        new_proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        _export_proc = new_proc
+    threading.Thread(target=_collect_export_output, args=(new_proc,), daemon=True).start()
 
 def _run_price_refetch():
     global _refetch_proc, _refetch_log
@@ -347,6 +430,18 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
       style="background:#64748b;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
       ⬇ Export JSON
     </button>
+    <button id="push-btn" onclick="pushToMainDB(this)"
+      style="background:#0ea5e9;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      ⬆ Upload to Main DB
+    </button>
+    <button id="load-json-btn" onclick="loadJsonToDB(this)"
+      style="background:#10b981;color:#fff;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      💾 Load JSON → SQLite
+    </button>
+    <button id="export-sql-btn" onclick="exportSQL(this)"
+      style="background:#f59e0b;color:#000;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
+      📥 Export SQL
+    </button>
     <button id="run-btn-all" onclick="runAll(this)"
       style="background:#f59e0b;color:#000;border:none;padding:8px 16px;border-radius:8px;font-size:.83rem;font-weight:700;cursor:pointer">
       ▶ Run All
@@ -375,6 +470,9 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
       <div class="tab active" onclick="showTab('products',this)">Products</div>
       <div class="tab" onclick="showTab('brands',this)">Brands</div>
       <div class="tab" onclick="showTab('price-check',this)">💰 Price Check</div>
+      <div class="tab" onclick="showTab('push-db',this)">📤 Upload to Main DB</div>
+      <div class="tab" onclick="showTab('load-json',this)">💾 Load JSON → SQLite</div>
+      <div class="tab" onclick="showTab('export-sql',this)">📥 Export SQL</div>
     </div>
 
     <div id="tab-products">
@@ -422,6 +520,88 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
       <div id="price-check-content" style="color:#7d8590">Loading...</div>
       <pre id="refetch-log" style="display:none;margin-top:16px;padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.78rem;color:#22c55e;max-height:300px;overflow-y:auto;white-space:pre-wrap"></pre>
     </div>
+
+    <div id="tab-push-db" style="display:none;padding:20px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="color:#0ea5e9;font-size:1.1rem">📤 Upload Scraped Products → Main Database</h2>
+        <button id="push-tab-btn" onclick="pushToMainDB(this)"
+          style="background:#0ea5e9;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          ⬆ Upload Unsynced
+        </button>
+        <button id="push-all-btn" onclick="pushToMainDB(this, true)"
+          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
+          ⬆ Re-upload All
+        </button>
+        <span id="push-tab-status" style="font-size:.82rem;color:#7d8590"></span>
+      </div>
+      <div style="background:#161b27;border:1px solid #21283a;border-radius:10px;padding:16px;margin-bottom:16px;font-size:.84rem;color:#7d8590;line-height:1.7">
+        <b style="color:#e0e0e0">What this does:</b><br>
+        Reads all scraped products from <code>scraper_data.db</code> and inserts them into
+        the main PostgreSQL database (<code>qumta_db</code>) — into the <code>products</code>
+        and <code>supplier_products</code> tables.<br>
+        Each scraper source (Elburoj, Janoubco, etc.) becomes a <b>Supplier</b>.<br>
+        Products are deduplicated by name + SKU. Prices are updated if changed.<br>
+        <span style="color:#f59e0b">⚠ Requires PostgreSQL to be running and configured in <code>.env</code>.</span>
+      </div>
+      <div id="push-stats" style="display:none;margin-bottom:16px"></div>
+      <pre id="push-log" style="padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.78rem;color:#22c55e;max-height:420px;overflow-y:auto;white-space:pre-wrap;min-height:80px">Waiting to start...</pre>
+    </div>
+
+    <div id="tab-load-json" style="display:none;padding:20px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="color:#10b981;font-size:1.1rem">💾 Load Scraped JSON → SQLite Database</h2>
+        <button id="load-json-tab-btn" onclick="loadJsonToDB(this)"
+          style="background:#10b981;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          ▶ Run Now
+        </button>
+        <span id="load-json-status" style="font-size:.82rem;color:#7d8590"></span>
+      </div>
+      <div style="background:#161b27;border:1px solid #21283a;border-radius:10px;padding:16px;margin-bottom:16px;font-size:.84rem;color:#7d8590;line-height:1.8">
+        <b style="color:#e0e0e0">الملفات اللي ترفعها:</b><br>
+        <code style="color:#10b981">scraped_products_raw.json</code> → elburoj (Salla)<br>
+        <code style="color:#10b981">scraped_kmco.json</code> → kmco<br>
+        <code style="color:#10b981">scraped_zorinstechnologies.json</code> → zorinstechnologies<br>
+        <br>
+        يضيف كل المنتجات في <code>scraper_data.db</code> مع sources، categories، وbrands. يتجنب التكرار.
+      </div>
+      <pre id="load-json-log" style="padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.8rem;color:#10b981;max-height:420px;overflow-y:auto;white-space:pre-wrap;min-height:80px">اضغط "Run Now" لتحميل ملفات JSON في قاعدة البيانات...</pre>
+    </div>
+
+    <div id="tab-export-sql" style="display:none;padding:20px">
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="color:#f59e0b;font-size:1.1rem">📥 Export Database → SQL File</h2>
+        <button onclick="exportSQL(this)"
+          style="background:#f59e0b;color:#000;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          ▶ Export All Tables
+        </button>
+        <button onclick="exportSQL(this,'scraper_products')"
+          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
+          Products Only
+        </button>
+        <button onclick="exportSQL(this,'scraper_sources')"
+          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
+          Sources Only
+        </button>
+        <span id="export-status" style="font-size:.82rem;color:#7d8590"></span>
+      </div>
+      <div style="background:#161b27;border:1px solid #21283a;border-radius:10px;padding:16px;margin-bottom:16px;font-size:.84rem;color:#7d8590;line-height:1.8">
+        <b style="color:#e0e0e0">الجداول اللي يصدّرها:</b><br>
+        <code style="color:#f59e0b">scraper_sources</code> · 
+        <code style="color:#f59e0b">scraper_brands</code> · 
+        <code style="color:#f59e0b">scraper_categories</code> · 
+        <code style="color:#f59e0b">scraper_products</code><br><br>
+        يولّد ملف <code>scraper_export.sql</code> يحتوي على <b>CREATE TABLE</b> + <b>INSERT INTO</b> لكل البيانات.<br>
+        بعد ما يخلص اضغط <b>⬇ Download</b> لتنزيل الملف.
+      </div>
+      <pre id="export-log" style="padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.8rem;color:#f59e0b;max-height:260px;overflow-y:auto;white-space:pre-wrap;min-height:60px">اضغط Export لتصدير قاعدة البيانات...</pre>
+      <div id="export-download" style="display:none;margin-top:14px">
+        <a id="export-download-link" href="/api/download-sql" download="scraper_export.sql"
+          style="display:inline-block;background:#f59e0b;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;font-size:.9rem;text-decoration:none">
+          ⬇ Download scraper_export.sql
+        </a>
+        <span style="color:#7d8590;font-size:.8rem;margin-left:12px">جاهز للتنزيل</span>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -457,9 +637,14 @@ function showTab(name, el){
   document.getElementById('tab-products').style.display   = name==='products'?'':'none';
   document.getElementById('tab-brands').style.display     = name==='brands'?'':'none';
   document.getElementById('tab-price-check').style.display= name==='price-check'?'':'none';
+  document.getElementById('tab-push-db').style.display    = name==='push-db'?'':'none';
+  document.getElementById('tab-load-json').style.display  = name==='load-json'?'':'none';
+  document.getElementById('tab-export-sql').style.display  = name==='export-sql'?'':'none';
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   el.classList.add('active');
   if(name==='price-check') loadPriceCheck();
+  if(name==='push-db') pollPushStatus();
+  if(name==='load-json') pollLoadJsonStatus();
 }
 
 function applyFilter(){
@@ -747,6 +932,139 @@ async function loadPriceCheck(){
   }
 }
 
+async function pushToMainDB(btn, forceAll = false){
+  const allBtns = [
+    document.getElementById('push-btn'),
+    document.getElementById('push-tab-btn'),
+    document.getElementById('push-all-btn'),
+  ].filter(Boolean);
+  const tabStatus = document.getElementById('push-tab-status');
+  allBtns.forEach(b=>{ b.disabled=true; });
+  if(tabStatus){ tabStatus.textContent='🟡 Running...'; tabStatus.style.color='#f59e0b'; }
+  const logEl = document.getElementById('push-log');
+  if(logEl) logEl.textContent = 'Starting...';
+  try {
+    const url = '/api/run-push' + (forceAll ? '?all=1' : '');
+    await fetch(url, {method:'POST'});
+  } catch(_) {}
+  pollPushStatus();
+}
+
+let _pushPollInterval = null;
+function pollPushStatus(){
+  if(_pushPollInterval) clearInterval(_pushPollInterval);
+  _pushPollInterval = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/push-status');
+      const d = await r.json();
+      const logEl = document.getElementById('push-log');
+      if(logEl && d.log){ logEl.textContent = d.log.join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+      const tabStatus = document.getElementById('push-tab-status');
+      const allBtns = [
+        document.getElementById('push-btn'),
+        document.getElementById('push-tab-btn'),
+        document.getElementById('push-all-btn'),
+      ].filter(Boolean);
+      if(d.status === 'running'){
+        if(tabStatus){ tabStatus.textContent='🟡 Uploading...'; tabStatus.style.color='#f59e0b'; }
+        const hBtn = document.getElementById('push-btn');
+        if(hBtn){ hBtn.disabled=true; hBtn.textContent='⏳ Uploading...'; }
+      } else if(d.status !== 'idle'){
+        clearInterval(_pushPollInterval); _pushPollInterval=null;
+        allBtns.forEach(b=>{ b.disabled=false; });
+        const hBtn = document.getElementById('push-btn');
+        if(hBtn) hBtn.textContent='⬆ Upload to Main DB';
+        if(tabStatus){
+          tabStatus.textContent = d.status==='done' ? '✓ Done' : '✗ Error — see log';
+          tabStatus.style.color = d.status==='done' ? '#22c55e' : '#f85149';
+        }
+      }
+    }catch(_){ clearInterval(_pushPollInterval); _pushPollInterval=null; }
+  }, 1500);
+}
+
+async function loadJsonToDB(btn){
+  const allBtns = [document.getElementById('load-json-btn'), document.getElementById('load-json-tab-btn')].filter(Boolean);
+  const statusEl = document.getElementById('load-json-status');
+  allBtns.forEach(b=>{ b.disabled=true; b.textContent='⏳ Loading...'; });
+  if(statusEl){ statusEl.textContent='🟡 Running...'; statusEl.style.color='#f59e0b'; }
+  const logEl = document.getElementById('load-json-log');
+  if(logEl) logEl.textContent = 'Starting...';
+  try { await fetch('/api/run-load-json', {method:'POST'}); } catch(_){}
+  pollLoadJsonStatus();
+}
+
+let _loadJsonInterval = null;
+function pollLoadJsonStatus(){
+  if(_loadJsonInterval) clearInterval(_loadJsonInterval);
+  _loadJsonInterval = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/load-json-status');
+      const d = await r.json();
+      const logEl = document.getElementById('load-json-log');
+      if(logEl && d.log){ logEl.textContent = d.log.join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+      const statusEl = document.getElementById('load-json-status');
+      const allBtns = [document.getElementById('load-json-btn'), document.getElementById('load-json-tab-btn')].filter(Boolean);
+      if(d.status === 'running'){
+        // still running
+      } else if(d.status !== 'idle'){
+        clearInterval(_loadJsonInterval); _loadJsonInterval = null;
+        allBtns.forEach(b=>{ b.disabled=false; b.textContent= b.id==='load-json-btn' ? '💾 Load JSON → SQLite' : '▶ Run Now'; });
+        if(statusEl){
+          statusEl.textContent = d.status==='done' ? '✓ Done' : '✗ Error';
+          statusEl.style.color = d.status==='done' ? '#10b981' : '#f85149';
+        }
+        // refresh product table after load
+        knownIds = new Set();
+        allProducts = [];
+        document.getElementById('tbody').innerHTML = '';
+        refresh();
+      }
+    }catch(_){ clearInterval(_loadJsonInterval); _loadJsonInterval=null; }
+  }, 1200);
+}
+
+let _exportInterval = null;
+
+function exportSQL(btn, table){
+  if(btn) btn.disabled = true;
+  const logEl   = document.getElementById('export-log');
+  const statusEl = document.getElementById('export-status');
+  const dlDiv   = document.getElementById('export-download');
+  if(logEl)   logEl.textContent = 'جارٍ التصدير...';
+  if(dlDiv)   dlDiv.style.display = 'none';
+  if(statusEl) statusEl.textContent = '⏳ جارٍ...';
+  fetch('/api/run-export', {
+    method:'POST',
+    headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({table: table||''})
+  }).then(()=>pollExportStatus(btn));
+}
+
+function pollExportStatus(btn){
+  if(_exportInterval) clearInterval(_exportInterval);
+  _exportInterval = setInterval(async()=>{
+    try{
+      const r = await fetch('/api/export-status');
+      const d = await r.json();
+      const logEl    = document.getElementById('export-log');
+      const statusEl = document.getElementById('export-status');
+      const dlDiv    = document.getElementById('export-download');
+      if(logEl && d.log){ logEl.textContent = d.log.join('\n'); logEl.scrollTop = logEl.scrollHeight; }
+      if(d.status !== 'running'){
+        clearInterval(_exportInterval); _exportInterval = null;
+        if(btn) btn.disabled = false;
+        if(d.status === 'done'){
+          if(statusEl){ statusEl.textContent = '✅ تم التصدير'; statusEl.style.color='#f59e0b'; }
+          if(dlDiv) dlDiv.style.display = 'block';
+        } else {
+          if(statusEl){ statusEl.textContent = '❌ خطأ'; statusEl.style.color='#f85149'; }
+        }
+      }
+    }catch(_){ clearInterval(_exportInterval); _exportInterval=null; }
+  }, 1200);
+}
+
 refresh();
 setInterval(refresh, 3000);
 setInterval(pollScraperStatus, 2000);
@@ -842,6 +1160,50 @@ class Handler(BaseHTTPRequestHandler):
             self.end_headers()
             self.wfile.write(body)
 
+        elif self.path == "/api/push-status":
+            body = json.dumps({"status": _push_status(), "log": _push_log[-100:]}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/load-json-status":
+            body = json.dumps({"status": _load_json_status(), "log": _load_json_log[-100:]}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/export-status":
+            body = json.dumps({"status": _export_status(), "log": _export_log[-100:]}, ensure_ascii=False).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/download-sql":
+            sql_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "scraper_export.sql")
+            if not os.path.exists(sql_path):
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"File not found. Run export first.")
+            else:
+                size = os.path.getsize(sql_path)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/octet-stream")
+                self.send_header("Content-Disposition", "attachment; filename=\"scraper_export.sql\"")
+                self.send_header("Content-Length", str(size))
+                self.end_headers()
+                with open(sql_path, "rb") as f:
+                    while True:
+                        chunk = f.read(65536)
+                        if not chunk:
+                            break
+                        self.wfile.write(chunk)
+
         elif self.path == "/api/export":
             products = export_db_json()
             body = json.dumps(products, ensure_ascii=False, default=str, indent=2).encode("utf-8")
@@ -892,6 +1254,46 @@ class Handler(BaseHTTPRequestHandler):
             else:
                 threading.Thread(target=_run_scraper, args=(name,), daemon=True).start()
                 body = json.dumps({"status": "started", "scraper": name}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path.startswith("/api/run-push"):
+            from urllib.parse import urlparse, parse_qs
+            qs = parse_qs(urlparse(self.path).query)
+            force_all = "1" in qs.get("all", [])
+            status = _push_status()
+            if status == "running":
+                body = json.dumps({"status": "already_running"}).encode("utf-8")
+            else:
+                threading.Thread(target=_run_push, args=(force_all,), daemon=True).start()
+                body = json.dumps({"status": "started", "force_all": force_all}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+
+        elif self.path == "/api/run-load-json":
+            if _load_json_status() == "running":
+                body = json.dumps({"status": "already_running"}).encode("utf-8")
+            else:
+                threading.Thread(target=_run_load_json, daemon=True).start()
+                body = json.dumps({"status": "started"}).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json; charset=utf-8")
+            self.end_headers()
+            self.wfile.write(body)
+        elif self.path == "/api/run-export":
+            length = int(self.headers.get("Content-Length", 0))
+            raw = self.rfile.read(length) if length else b"{}"
+            payload = json.loads(raw or b"{}")
+            table = payload.get("table", "")
+            if _export_status() == "running":
+                body = json.dumps({"status": "already_running"}).encode("utf-8")
+            else:
+                threading.Thread(target=_run_export, args=(table,), daemon=True).start()
+                body = json.dumps({"status": "started"}).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
             self.end_headers()
