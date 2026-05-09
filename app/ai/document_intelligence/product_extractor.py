@@ -73,7 +73,7 @@ def _guess_category(text: str) -> Optional[str]:
     return None
 
 
-def _extract_quantity(text: str) -> Optional[tuple[float]Optional[, str]]:
+def _extract_quantity(text: str) -> Optional[tuple[float, Optional[str]]]:
     m = _QUANTITY_RE.search(text)
     if m:
         try:

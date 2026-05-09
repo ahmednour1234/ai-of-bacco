@@ -948,7 +948,7 @@ class ProductExtractionService:
     # Parsing product rows
     # -------------------------------------------------------------------------
 
-    def _parse_inline_product_row(self, line: str) -> Optional[tuple[str]Optional[, float]Optional[, float]]:
+    def _parse_inline_product_row(self, line: str) -> Optional[tuple[str, Optional[float], Optional[float]]]:
         """
         Example:
         مكيف ترين مخفي 5 طن حار وبارد انفيرتر 2 13350 26700
@@ -1368,7 +1368,7 @@ class ProductExtractionService:
                 lines.append(line)
         return lines
 
-    def _extract_qty_unit(self, line: str) -> Optional[tuple[float]Optional[, str]]:
+    def _extract_qty_unit(self, line: str) -> Optional[tuple[Optional[float], str]]:
         match = self._QTY_UNIT_PATTERN.search(line)
         if not match:
             return None, None

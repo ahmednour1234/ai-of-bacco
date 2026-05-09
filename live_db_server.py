@@ -34,6 +34,10 @@ _refetch_proc   = None
 _refetch_log:   list  = []
 _refetch_lock   = threading.Lock()
 
+_push_proc   = None
+_push_log:   list  = []
+_push_lock   = threading.Lock()
+
 def _refetch_status() -> str:
     with _refetch_lock:
         if _refetch_proc is None:
@@ -51,6 +55,45 @@ def _collect_refetch_output(proc):
             _refetch_log.append(line)
             if len(_refetch_log) > 500:
                 _refetch_log = _refetch_log[-500:]
+
+def _push_status() -> str:
+    with _push_lock:
+        if _push_proc is None:
+            return "idle"
+        ret = _push_proc.poll()
+        if ret is None:
+            return "running"
+        return "done" if ret == 0 else f"error:{ret}"
+
+def _collect_push_output(proc):
+    global _push_log
+    for raw in proc.stdout:
+        line = raw.decode("utf-8", errors="replace").rstrip()
+        with _push_lock:
+            _push_log.append(line)
+            if len(_push_log) > 1000:
+                _push_log = _push_log[-1000:]
+
+def _run_push(force_all: bool = False):
+    global _push_proc, _push_log
+    script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "push_to_main_db.py")
+    with _push_lock:
+        if _push_proc is not None and _push_proc.poll() is None:
+            return  # already running
+        _push_log = []
+        cmd = [sys.executable, script]
+        if force_all:
+            cmd.append("--all")
+        env = os.environ.copy()
+        new_proc = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.STDOUT,
+            env=env,
+            cwd=os.path.dirname(os.path.abspath(__file__)),
+        )
+        _push_proc = new_proc
+    threading.Thread(target=_collect_push_output, args=(new_proc,), daemon=True).start()
 
 def _run_price_refetch():
     global _refetch_proc, _refetch_log
@@ -364,9 +407,20 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
     </div>
 
     <div id="tab-price-check" style="display:none;padding:20px">
-      <h2 style="color:#58a6ff;margin-bottom:16px;font-size:1.1rem">💰 Price Coverage by Scraper</h2>
+      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px">
+        <h2 style="color:#58a6ff;font-size:1.1rem">💰 Price Coverage by Scraper</h2>
+        <button id="refetch-tab-btn" onclick="refetchPrices(this)"
+          style="background:#8b5cf6;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          ↺ Refresh Prices
+        </button>
+        <button onclick="loadPriceCheck()"
+          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
+          ⟳ Reload Stats
+        </button>
+        <span id="refetch-tab-status" style="font-size:.82rem;color:#7d8590"></span>
+      </div>
       <div id="price-check-content" style="color:#7d8590">Loading...</div>
-      <pre id="refetch-log" style="display:none;margin-top:16px;padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.78rem;color:#22c55e;max-height:260px;overflow-y:auto;white-space:pre-wrap"></pre>
+      <pre id="refetch-log" style="display:none;margin-top:16px;padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.78rem;color:#22c55e;max-height:300px;overflow-y:auto;white-space:pre-wrap"></pre>
     </div>
   </div>
 </div>
@@ -622,7 +676,11 @@ async function runAll(btn){
 }
 
 async function refetchPrices(btn){
-  if(btn){ btn.disabled=true; btn.textContent='⏳ Refetching...'; }
+  const tabStatus = document.getElementById('refetch-tab-status');
+  // disable all refetch buttons
+  const allBtns = [document.getElementById('refetch-btn'), document.getElementById('refetch-tab-btn')].filter(Boolean);
+  allBtns.forEach(b=>{ b.disabled=true; b.textContent='⏳ Fetching...'; });
+  if(tabStatus) { tabStatus.textContent='🟡 Running...'; tabStatus.style.color='#f59e0b'; }
   try{ await fetch('/api/run-refetch', {method:'POST'}); } catch(_){}
   const logEl = document.getElementById('refetch-log');
   if(logEl){ logEl.style.display='block'; logEl.textContent='Starting...'; }
@@ -630,13 +688,14 @@ async function refetchPrices(btn){
     try{
       const r = await fetch('/api/refetch-status');
       const d = await r.json();
-      if(logEl && d.log) logEl.textContent = d.log.join('\n');
+      if(logEl && d.log){ logEl.textContent = d.log.join('\n'); logEl.scrollTop = logEl.scrollHeight; }
       if(d.status !== 'running'){
         clearInterval(check);
-        if(btn){ btn.disabled=false; btn.textContent='↺ Refetch Prices'; }
+        allBtns.forEach(b=>{ b.disabled=false; b.textContent= b.id==='refetch-btn' ? '↺ Refetch Prices' : '↺ Refresh Prices'; });
+        if(tabStatus){ tabStatus.textContent = d.status==='done' ? '✓ Done' : '✗ Error'; tabStatus.style.color = d.status==='done' ? '#22c55e' : '#f85149'; }
         loadPriceCheck();
       }
-    }catch(_){ clearInterval(check); if(btn){ btn.disabled=false; btn.textContent='↺ Refetch Prices'; } }
+    }catch(_){ clearInterval(check); allBtns.forEach(b=>{ b.disabled=false; b.textContent= b.id==='refetch-btn' ? '↺ Refetch Prices' : '↺ Refresh Prices'; }); }
   }, 2000);
 }
 
@@ -692,6 +751,7 @@ refresh();
 setInterval(refresh, 3000);
 setInterval(pollScraperStatus, 2000);
 pollScraperStatus();
+loadPriceCheck();
 </script>
 </body>
 </html>"""
