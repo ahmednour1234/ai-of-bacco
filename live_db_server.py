@@ -156,7 +156,7 @@ def _collect_export_output(proc):
             if len(_export_log) > 200:
                 _export_log = _export_log[-200:]
 
-def _run_export(table: str = ""):
+def _run_export(table: str = "", target: str = "sqlite"):
     global _export_proc, _export_log
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), "export_db_sql.py")
     with _export_lock:
@@ -166,6 +166,10 @@ def _run_export(table: str = ""):
         cmd = [sys.executable, script]
         if table:
             cmd += ["--table", table]
+        if target in ("mysql", "mysql-split"):
+            cmd += ["--mysql"]
+        if target == "mysql-split":
+            cmd += ["--split", "5000"]
         env = os.environ.copy()
         env["PYTHONIOENCODING"] = "utf-8"
         new_proc = subprocess.Popen(
@@ -568,19 +572,19 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
     </div>
 
     <div id="tab-export-sql" style="display:none;padding:20px">
-      <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;flex-wrap:wrap">
-        <h2 style="color:#f59e0b;font-size:1.1rem">📥 Export Database → SQL File</h2>
-        <button onclick="exportSQL(this)"
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+        <h2 style="color:#f59e0b;font-size:1.1rem">📥 Export Database -> SQL File</h2>
+        <button onclick="exportSQL(this,'','sqlite')"
           style="background:#f59e0b;color:#000;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
-          ▶ Export All Tables
+          ▶ SQLite Format
         </button>
-        <button onclick="exportSQL(this,'scraper_products')"
-          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
-          Products Only
+        <button onclick="exportSQL(this,'','mysql')"
+          style="background:#00758f;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          🐬 MySQL (1 file)
         </button>
-        <button onclick="exportSQL(this,'scraper_sources')"
-          style="background:#1c2333;color:#7d8590;border:1px solid #21283a;padding:8px 14px;border-radius:8px;font-size:.83rem;cursor:pointer">
-          Sources Only
+        <button onclick="exportSQL(this,'','mysql-split')"
+          style="background:#7c3aed;color:#fff;border:none;padding:8px 18px;border-radius:8px;font-size:.85rem;font-weight:700;cursor:pointer">
+          🐬 MySQL (split 5000 rows)
         </button>
         <span id="export-status" style="font-size:.82rem;color:#7d8590"></span>
       </div>
@@ -590,14 +594,16 @@ a.url-link{color:#58a6ff;text-decoration:none;font-size:.8rem}
         <code style="color:#f59e0b">scraper_brands</code> · 
         <code style="color:#f59e0b">scraper_categories</code> · 
         <code style="color:#f59e0b">scraper_products</code><br><br>
-        يولّد ملف <code>scraper_export.sql</code> يحتوي على <b>CREATE TABLE</b> + <b>INSERT INTO</b> لكل البيانات.<br>
-        بعد ما يخلص اضغط <b>⬇ Download</b> لتنزيل الملف.
+        <b style="color:#f59e0b">SQLite Format</b>: للاستخدام مع SQLite و DB Browser<br>
+        <b style="color:#00758f">MySQL (1 file)</b>: MySQL/MariaDB ملف واحد<br>
+        <b style="color:#7c3aed">MySQL (split)</b>: يقسّم لملفات أصغر 5000 صف كل ملف — مثالي لـ phpMyAdmin<br>
+        بعد ما يخلص اضغط <b>Download ZIP</b> لتنزيل الملفات.
       </div>
       <pre id="export-log" style="padding:12px;background:#0d1117;border:1px solid #21283a;border-radius:8px;font-size:.8rem;color:#f59e0b;max-height:260px;overflow-y:auto;white-space:pre-wrap;min-height:60px">اضغط Export لتصدير قاعدة البيانات...</pre>
       <div id="export-download" style="display:none;margin-top:14px">
-        <a id="export-download-link" href="/api/download-sql" download="scraper_export.sql"
-          style="display:inline-block;background:#f59e0b;color:#000;padding:10px 24px;border-radius:8px;font-weight:700;font-size:.9rem;text-decoration:none">
-          ⬇ Download scraper_export.sql
+        <a id="export-download-link" href="/api/download-sql-zip" download="scraper_export.zip"
+          style="display:inline-block;background:#7c3aed;color:#fff;padding:10px 24px;border-radius:8px;font-weight:700;font-size:.9rem;text-decoration:none">
+          Download ZIP (all files)
         </a>
         <span style="color:#7d8590;font-size:.8rem;margin-left:12px">جاهز للتنزيل</span>
       </div>
@@ -1026,18 +1032,18 @@ function pollLoadJsonStatus(){
 
 let _exportInterval = null;
 
-function exportSQL(btn, table){
+function exportSQL(btn, table, target){
   if(btn) btn.disabled = true;
   const logEl   = document.getElementById('export-log');
   const statusEl = document.getElementById('export-status');
   const dlDiv   = document.getElementById('export-download');
-  if(logEl)   logEl.textContent = 'جارٍ التصدير...';
+  if(logEl)   logEl.textContent = 'Exporting...';
   if(dlDiv)   dlDiv.style.display = 'none';
-  if(statusEl) statusEl.textContent = '⏳ جارٍ...';
+  if(statusEl) statusEl.textContent = '...';
   fetch('/api/run-export', {
     method:'POST',
     headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({table: table||''})
+    body: JSON.stringify({table: table||'', target: target||'sqlite'})
   }).then(()=>pollExportStatus(btn));
 }
 
@@ -1204,6 +1210,28 @@ class Handler(BaseHTTPRequestHandler):
                             break
                         self.wfile.write(chunk)
 
+        elif self.path == "/api/download-sql-zip":
+            import glob, zipfile, io
+            root = os.path.dirname(os.path.abspath(__file__))
+            files = sorted(glob.glob(os.path.join(root, "scraper_export*.sql")))
+            if not files:
+                self.send_response(404)
+                self.end_headers()
+                self.wfile.write(b"No export files found. Run export first.")
+            else:
+                buf = io.BytesIO()
+                with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+                    for f in files:
+                        zf.write(f, os.path.basename(f))
+                buf.seek(0)
+                data = buf.read()
+                self.send_response(200)
+                self.send_header("Content-Type", "application/zip")
+                self.send_header("Content-Disposition", "attachment; filename=\"scraper_export.zip\"")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+
         elif self.path == "/api/export":
             products = export_db_json()
             body = json.dumps(products, ensure_ascii=False, default=str, indent=2).encode("utf-8")
@@ -1288,11 +1316,12 @@ class Handler(BaseHTTPRequestHandler):
             length = int(self.headers.get("Content-Length", 0))
             raw = self.rfile.read(length) if length else b"{}"
             payload = json.loads(raw or b"{}")
-            table = payload.get("table", "")
+            table  = payload.get("table", "")
+            target = payload.get("target", "sqlite")  # sqlite | mysql | mysql-split
             if _export_status() == "running":
                 body = json.dumps({"status": "already_running"}).encode("utf-8")
             else:
-                threading.Thread(target=_run_export, args=(table,), daemon=True).start()
+                threading.Thread(target=_run_export, args=(table, target), daemon=True).start()
                 body = json.dumps({"status": "started"}).encode("utf-8")
             self.send_response(200)
             self.send_header("Content-Type", "application/json; charset=utf-8")
